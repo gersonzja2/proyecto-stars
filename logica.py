@@ -68,13 +68,13 @@ class Tanque:
         nueva_x += movimiento_x
         nueva_y += movimiento_y
             
-        # Verificar colisiones con obstáculos no destructibles
+        # Verificar colisiones con obstáculos (todos los obstáculos son sólidos)
         rect_tanque = pygame.Rect(nueva_x, nueva_y, self.ancho, self.alto)
         colision = False
         
-        # Colisión con obstáculos
+        # Colisión con obstáculos (tanto destructibles como no destructibles)
         for obstaculo in obstaculos:
-            if not obstaculo.destructible and rect_tanque.colliderect(obstaculo.rect):
+            if rect_tanque.colliderect(obstaculo.rect):
                 colision = True
                 break
                 
@@ -339,6 +339,9 @@ class Juego:
             if evento.type == pygame.QUIT:
                 return False
             elif evento.type == pygame.KEYDOWN:
+                if evento.key == pygame.K_ESCAPE:
+                    # Salir del juego con ESC
+                    return False
                 if evento.key == pygame.K_SPACE:
                     # Tanque 1 dispara
                     bala = self.tanque1.disparar()
@@ -545,7 +548,7 @@ class Juego:
         # Instrucciones
         instrucciones = [
             "WASD: Tanque Azul | IJKL: Tanque Rojo | ESPACIO/ENTER: Disparar | R: Reiniciar",
-            "M: Pausar/Reanudar música | +/-: Ajustar volumen"
+            "M: Pausar/Reanudar música | +/-: Ajustar volumen | ESC: Salir"
         ]
         
         for i, instruccion in enumerate(instrucciones):
