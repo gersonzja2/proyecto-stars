@@ -45,25 +45,24 @@ class Tanque:
         self.tiempo_invulnerable = 0
         
     def mover(self, teclas_presionadas, obstaculos, otros_tanques):
-        # Calcular nueva posición con movimiento diagonal suavizado
+        # Sistema de rotación y movimiento direccional
         nueva_x = self.x
         nueva_y = self.y
         movimiento_x = 0
         movimiento_y = 0
+        disparar = False
         
-        if teclas_presionadas[self.teclas['arriba']]:
-            movimiento_y -= self.velocidad
-        if teclas_presionadas[self.teclas['abajo']]:
-            movimiento_y += self.velocidad
+        # Rotación con teclas de dirección
         if teclas_presionadas[self.teclas['izquierda']]:
-            movimiento_x -= self.velocidad
+            self.angulo -= 0.1  # Rotar hacia la izquierda
         if teclas_presionadas[self.teclas['derecha']]:
-            movimiento_x += self.velocidad
-            
-        # Normalizar movimiento diagonal
-        if movimiento_x != 0 and movimiento_y != 0:
-            movimiento_x *= 0.707  # 1/sqrt(2)
-            movimiento_y *= 0.707
+            self.angulo += 0.1  # Rotar hacia la derecha
+        
+        # Movimiento hacia adelante con tecla de avance
+        if teclas_presionadas[self.teclas['avanzar']]:
+            movimiento_x = math.cos(self.angulo) * self.velocidad
+            movimiento_y = math.sin(self.angulo) * self.velocidad
+            disparar = True  # Disparar automáticamente al moverse
             
         nueva_x += movimiento_x
         nueva_y += movimiento_y
@@ -96,10 +95,8 @@ class Tanque:
             self.rect.x = self.x
             self.rect.y = self.y
             
-    def apuntar_hacia_mouse(self, mouse_pos):
-        dx = mouse_pos[0] - (self.x + self.ancho // 2)
-        dy = mouse_pos[1] - (self.y + self.alto // 2)
-        self.angulo = math.atan2(dy, dx)
+        return disparar  # Devolver si debe disparar
+            
         
     def disparar(self):
         tiempo_actual = pygame.time.get_ticks()
@@ -233,15 +230,13 @@ class Juego:
         
         # Crear tanques
         self.tanque1 = Tanque(100, 100, AZUL, {
-            'arriba': pygame.K_w,
-            'abajo': pygame.K_s,
+            'avanzar': pygame.K_w,
             'izquierda': pygame.K_a,
             'derecha': pygame.K_d
         })
         
         self.tanque2 = Tanque(800, 500, ROJO, {
-            'arriba': pygame.K_i,
-            'abajo': pygame.K_k,
+            'avanzar': pygame.K_i,
             'izquierda': pygame.K_j,
             'derecha': pygame.K_l
         })
@@ -342,16 +337,7 @@ class Juego:
                 if evento.key == pygame.K_ESCAPE:
                     # Salir del juego con ESC
                     return False
-                if evento.key == pygame.K_SPACE:
-                    # Tanque 1 dispara
-                    bala = self.tanque1.disparar()
-                    if bala:
-                        self.balas.append(bala)
-                elif evento.key == pygame.K_RETURN:
-                    # Tanque 2 dispara
-                    bala = self.tanque2.disparar()
-                    if bala:
-                        self.balas.append(bala)
+                # Los disparos ahora son automáticos al moverse
                 elif evento.key == pygame.K_r and self.juego_terminado:
                     # Reiniciar juego
                     self.reiniciar_juego()
@@ -374,17 +360,20 @@ class Juego:
         
         # Mover tanques con detección de colisiones entre ellos
         otros_tanques = [self.tanque2] if self.tanque1.vidas > 0 else []
-        self.tanque1.mover(teclas_presionadas, self.obstaculos, otros_tanques)
+        if self.tanque1.vidas > 0:
+            debe_disparar1 = self.tanque1.mover(teclas_presionadas, self.obstaculos, otros_tanques)
+            if debe_disparar1:
+                bala = self.tanque1.disparar()
+                if bala:
+                    self.balas.append(bala)
         
         otros_tanques = [self.tanque1] if self.tanque2.vidas > 0 else []
-        self.tanque2.mover(teclas_presionadas, self.obstaculos, otros_tanques)
-        
-        # Apuntar tanques hacia el mouse
-        mouse_pos = pygame.mouse.get_pos()
-        if self.tanque1.vidas > 0:
-            self.tanque1.apuntar_hacia_mouse(mouse_pos)
         if self.tanque2.vidas > 0:
-            self.tanque2.apuntar_hacia_mouse(mouse_pos)
+            debe_disparar2 = self.tanque2.mover(teclas_presionadas, self.obstaculos, otros_tanques)
+            if debe_disparar2:
+                bala = self.tanque2.disparar()
+                if bala:
+                    self.balas.append(bala)
         
         # Mover balas
         for bala in self.balas[:]:
@@ -486,13 +475,15 @@ class Juego:
     def reiniciar_juego(self):
         """Reinicia el juego a su estado inicial."""
         self.tanque1 = Tanque(100, 100, AZUL, {
-            'arriba': pygame.K_w, 'abajo': pygame.K_s,
-            'izquierda': pygame.K_a, 'derecha': pygame.K_d
+            'avanzar': pygame.K_w,
+            'izquierda': pygame.K_a,
+            'derecha': pygame.K_d
         })
         
         self.tanque2 = Tanque(800, 500, ROJO, {
-            'arriba': pygame.K_i, 'abajo': pygame.K_k,
-            'izquierda': pygame.K_j, 'derecha': pygame.K_l
+            'avanzar': pygame.K_i,
+            'izquierda': pygame.K_j,
+            'derecha': pygame.K_l
         })
         
         self.balas = []
@@ -547,8 +538,8 @@ class Juego:
         
         # Instrucciones
         instrucciones = [
-            "WASD: Tanque Azul | IJKL: Tanque Rojo | ESPACIO/ENTER: Disparar | R: Reiniciar",
-            "M: Pausar/Reanudar música | +/-: Ajustar volumen | ESC: Salir"
+            "WAD: Tanque Azul (W: Avanzar/Disparar, A/D: Girar) | IJL: Tanque Rojo (I: Avanzar/Disparar, J/L: Girar)",
+            "R: Reiniciar | M: Pausar/Reanudar música | +/-: Ajustar volumen | ESC: Salir"
         ]
         
         for i, instruccion in enumerate(instrucciones):
