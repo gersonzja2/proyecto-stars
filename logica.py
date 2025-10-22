@@ -83,9 +83,13 @@ class Tanque:
                 colision = True
                 break
                     
-        # Verificar límites de la pantalla
-        if (nueva_x < 0 or nueva_x > ANCHO_VENTANA - self.ancho or 
-            nueva_y < 0 or nueva_y > ALTO_VENTANA - self.alto):
+        # Verificar límites de la pantalla (más estricto)
+        if (nueva_x < 0 or nueva_x >= ANCHO_VENTANA - self.ancho or 
+            nueva_y < 0 or nueva_y >= ALTO_VENTANA - self.alto):
+            colision = True
+            
+        # Verificar que no entre en la zona de la interfaz superior (primeros 80 píxeles)
+        if nueva_y < 80:
             colision = True
             
         # Solo mover si no hay colisión
@@ -308,26 +312,88 @@ class Juego:
             print(f"Volumen: {int(self.volumen_actual * 100)}%")
         
     def crear_obstaculos(self):
-        # Crear rocas (no destructibles) - más estratégicamente colocadas
-        posiciones_rocas = [
-            (200, 200), (400, 150), (600, 300), (300, 400),
-            (700, 200), (150, 500), (500, 500), (800, 400),
-            (350, 250), (650, 450), (250, 600), (750, 100)
-        ]
+        # Limpiar obstáculos existentes
+        self.obstaculos = []
         
-        for pos in posiciones_rocas:
-            self.obstaculos.append(Obstaculo(pos[0], pos[1], 'roca'))
+        # Crear rocas (no destructibles) - posiciones aleatorias
+        num_rocas = 12
+        for _ in range(num_rocas):
+            x, y = self.generar_posicion_segura()
+            self.obstaculos.append(Obstaculo(x, y, 'roca'))
             
-        # Crear arbustos (destructibles) - más distribuidos
-        posiciones_arbustos = [
-            (250, 250), (350, 350), (450, 250), (550, 450),
-            (650, 150), (750, 350), (150, 350), (850, 250),
-            (100, 200), (300, 100), (500, 400), (700, 500),
-            (200, 450), (400, 300), (600, 200), (800, 150)
-        ]
+        # Crear arbustos (destructibles) - posiciones aleatorias
+        num_arbustos = 16
+        for _ in range(num_arbustos):
+            x, y = self.generar_posicion_segura()
+            self.obstaculos.append(Obstaculo(x, y, 'arbusto'))
         
-        for pos in posiciones_arbustos:
-            self.obstaculos.append(Obstaculo(pos[0], pos[1], 'arbusto'))
+        # Verificar que no haya obstáculos superpuestos y separar si es necesario
+        self.separar_obstaculos()
+    
+    def generar_posicion_segura(self):
+        """Genera una posición aleatoria que no colisione con los tanques."""
+        max_intentos = 100  # Límite de intentos para evitar bucle infinito
+        margen_tanque = 60  # Margen adicional alrededor de los tanques
+        
+        for intento in range(max_intentos):
+            x = random.randint(50, ANCHO_VENTANA - 90)  # Evitar bordes
+            y = random.randint(130, ALTO_VENTANA - 90)  # Evitar zona de interfaz y bordes
+            
+            # Crear rectángulo temporal para verificar colisiones
+            rect_obstaculo = pygame.Rect(x, y, 40, 40)
+            
+            # Verificar colisión con tanque 1
+            rect_tanque1 = pygame.Rect(
+                self.tanque1.x - margen_tanque, 
+                self.tanque1.y - margen_tanque, 
+                self.tanque1.ancho + margen_tanque * 2, 
+                self.tanque1.alto + margen_tanque * 2
+            )
+            
+            # Verificar colisión con tanque 2
+            rect_tanque2 = pygame.Rect(
+                self.tanque2.x - margen_tanque, 
+                self.tanque2.y - margen_tanque, 
+                self.tanque2.ancho + margen_tanque * 2, 
+                self.tanque2.alto + margen_tanque * 2
+            )
+            
+            # Si no colisiona con ningún tanque, devolver la posición
+            if not rect_obstaculo.colliderect(rect_tanque1) and not rect_obstaculo.colliderect(rect_tanque2):
+                return x, y
+        
+        # Si no se encuentra una posición segura después de muchos intentos,
+        # devolver una posición aleatoria (caso extremo)
+        x = random.randint(50, ANCHO_VENTANA - 90)
+        y = random.randint(130, ALTO_VENTANA - 90)
+        return x, y
+    
+    def separar_obstaculos(self):
+        """Separa obstáculos que estén superpuestos."""
+        max_intentos = 50  # Límite de intentos para evitar bucle infinito
+        
+        for i in range(len(self.obstaculos)):
+            for intento in range(max_intentos):
+                obstaculo_actual = self.obstaculos[i]
+                superpuesto = False
+                
+                # Verificar superposición con otros obstáculos
+                for j in range(len(self.obstaculos)):
+                    if i != j and obstaculo_actual.rect.colliderect(self.obstaculos[j].rect):
+                        superpuesto = True
+                        break
+                
+                # Si no hay superposición, continuar con el siguiente
+                if not superpuesto:
+                    break
+                
+                # Si hay superposición, generar nueva posición
+                x = random.randint(50, ANCHO_VENTANA - 90)
+                y = random.randint(130, ALTO_VENTANA - 90)
+                obstaculo_actual.x = x
+                obstaculo_actual.y = y
+                obstaculo_actual.rect.x = x
+                obstaculo_actual.rect.y = y
     
     def manejar_eventos(self):
         for evento in pygame.event.get():
@@ -338,8 +404,8 @@ class Juego:
                     # Salir del juego con ESC
                     return False
                 # Los disparos ahora son automáticos al moverse
-                elif evento.key == pygame.K_r and self.juego_terminado:
-                    # Reiniciar juego
+                elif evento.key == pygame.K_r:
+                    # Reiniciar juego (funciona en cualquier momento)
                     self.reiniciar_juego()
                 elif evento.key == pygame.K_m:
                     # Pausar/reanudar música
@@ -529,32 +595,37 @@ class Juego:
         pygame.draw.rect(self.pantalla, (50, 50, 50), (0, 0, ANCHO_VENTANA, 80))
         pygame.draw.line(self.pantalla, BLANCO, (0, 80), (ANCHO_VENTANA, 80), 2)
         
-        # Puntuaciones
-        texto_puntuacion1 = self.fuente.render(f"Tanque Azul: {self.tanque1.puntuacion}", True, AZUL)
-        texto_puntuacion2 = self.fuente.render(f"Tanque Rojo: {self.tanque2.puntuacion}", True, ROJO)
+        # Puntuaciones más compactas
+        texto_puntuacion1 = self.fuente.render(f"Azul: {self.tanque1.puntuacion}", True, AZUL)
+        texto_puntuacion2 = self.fuente.render(f"Rojo: {self.tanque2.puntuacion}", True, ROJO)
         
         self.pantalla.blit(texto_puntuacion1, (10, 10))
         self.pantalla.blit(texto_puntuacion2, (10, 40))
         
-        # Instrucciones
+        # Instrucciones divididas en líneas más cortas
         instrucciones = [
-            "WAD: Tanque Azul (W: Avanzar/Disparar, A/D: Girar) | IJL: Tanque Rojo (I: Avanzar/Disparar, J/L: Girar)",
-            "R: Reiniciar | M: Pausar/Reanudar música | +/-: Ajustar volumen | ESC: Salir"
+            "Tanque Azul: W=Avanzar/Disparar, A/D=Girar",
+            "Tanque Rojo: I=Avanzar/Disparar, J/L=Girar",
+            "R=Reiniciar (cualquier momento) | M=Música | +/-=Volumen | ESC=Salir"
         ]
         
+        # Posicionar las instrucciones en la parte inferior
         for i, instruccion in enumerate(instrucciones):
             texto = self.fuente_pequeña.render(instruccion, True, AMARILLO)
-            self.pantalla.blit(texto, (ANCHO_VENTANA - 600, 10 + i * 20))
+            # Centrar horizontalmente y posicionar en la parte inferior
+            x_pos = (ANCHO_VENTANA - texto.get_width()) // 2
+            y_pos = ALTO_VENTANA - 80 + i * 20
+            self.pantalla.blit(texto, (x_pos, y_pos))
         
-        # Mostrar estado de la música
+        # Mostrar estado de la música y volumen en la esquina superior derecha
         estado_musica = "Música: ON" if not self.musica_pausada else "Música: OFF"
         color_musica = VERDE if not self.musica_pausada else ROJO
         texto_musica = self.fuente_pequeña.render(estado_musica, True, color_musica)
-        self.pantalla.blit(texto_musica, (ANCHO_VENTANA - 200, 50))
+        self.pantalla.blit(texto_musica, (ANCHO_VENTANA - 120, 10))
         
         # Mostrar volumen
         texto_volumen = self.fuente_pequeña.render(f"Vol: {int(self.volumen_actual * 100)}%", True, BLANCO)
-        self.pantalla.blit(texto_volumen, (ANCHO_VENTANA - 200, 70))
+        self.pantalla.blit(texto_volumen, (ANCHO_VENTANA - 120, 30))
     
     def dibujar_pantalla_fin(self):
         """Dibuja la pantalla de fin de juego."""
