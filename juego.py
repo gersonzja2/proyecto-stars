@@ -36,12 +36,13 @@ AZUL_BRILLANTE = (100, 200, 255)
 BLANCO_BRILLANTE = (255, 255, 220)
 
 # Configuración de efectos
-PARTICULAS_EXPLOSION = 20
-PARTICULAS_PROPULSION = 8
-DURACION_EXPLOSION = 45
-DURACION_DESTELLO = 10
-DURACION_PROPULSION = 15
-DURACION_ESTELA = 20
+PARTICULAS_EXPLOSION = 8  # Reducido de 20
+PARTICULAS_PROPULSION = 4  # Reducido de 8
+DURACION_EXPLOSION = 30  # Reducido de 45
+DURACION_DESTELLO = 8  # Reducido de 10
+DURACION_PROPULSION = 10  # Reducido de 15
+DURACION_ESTELA = 15  # Reducido de 20
+MAX_EFECTOS = 50  # Límite máximo de efectos simultáneos
 
 class TipoObstaculo(Enum):
     ARBUSTO = auto()
@@ -219,39 +220,23 @@ class Bala:
         return self.tiempo_vida >= self.tiempo_max_vida
         
     def dibujar(self, pantalla):
-        # Crear una superficie con alpha para el brillo
-        surf_brillo = pygame.Surface((self.radio * 6, self.radio * 6), pygame.SRCALPHA)
-        centro_brillo = (self.radio * 3, self.radio * 3)
-        
-        # Dibujar el brillo exterior
-        for r in range(self.radio + 3, self.radio - 1, -1):
-            alpha = int(100 * (1 - (r - self.radio) / 4))
-            color_brillo = (*self.color[:3], alpha)
-            pygame.draw.circle(surf_brillo, color_brillo, centro_brillo, r)
-        
-        # Dibujar núcleo de la bala
-        pygame.draw.circle(surf_brillo, (*self.color[:3], 255), centro_brillo, self.radio)
-        pygame.draw.circle(surf_brillo, BLANCO_BRILLANTE, centro_brillo, self.radio - 1)
-        
-        # Dibujar estela
-        num_estelas = 6
+        # Dibujar estela simplificada
+        num_estelas = 4  # Reducido de 6
         for i in range(num_estelas):
             distancia = i * 3
-            alpha = int(200 * (1 - i/num_estelas))
+            alpha = int(150 * (1 - i/num_estelas))
             pos_x = int(self.x - math.cos(self.angulo) * distancia)
             pos_y = int(self.y - math.sin(self.angulo) * distancia)
             radio_estela = max(1, self.radio - i)
             
-            # Crear superficie para cada parte de la estela
-            surf_estela = pygame.Surface((radio_estela * 4, radio_estela * 4), pygame.SRCALPHA)
-            pygame.draw.circle(surf_estela, (*self.color[:3], alpha), 
-                             (radio_estela * 2, radio_estela * 2), radio_estela)
-            pantalla.blit(surf_estela, 
-                         (pos_x - radio_estela * 2, pos_y - radio_estela * 2))
+            # Dibujar directamente sin superficie adicional
+            color_estela = (*self.color[:3], alpha)
+            pygame.draw.circle(pantalla, color_estela,
+                             (pos_x, pos_y), radio_estela)
         
-        # Dibujar el brillo principal
-        pantalla.blit(surf_brillo, 
-                     (int(self.x - centro_brillo[0]), int(self.y - centro_brillo[1])))
+        # Dibujar bala con brillo
+        pygame.draw.circle(pantalla, self.color, (int(self.x), int(self.y)), self.radio)
+        pygame.draw.circle(pantalla, BLANCO_BRILLANTE, (int(self.x), int(self.y)), self.radio - 1)
 
 class Obstaculo:
     def __init__(self, x, y, tipo):
@@ -634,6 +619,11 @@ class Juego:
     
     def crear_efecto_explosion(self, x, y):
         """Crea un efecto visual de explosión con partículas y ondas expansivas."""
+        # Verificar límite de efectos
+        if len(self.efectos) >= MAX_EFECTOS:
+            # Eliminar los efectos más antiguos si se supera el límite
+            self.efectos = self.efectos[-MAX_EFECTOS//2:]
+            
         # Efecto principal de explosión
         self.efectos.append({
             'tipo': 'explosion',
@@ -641,7 +631,7 @@ class Juego:
             'tiempo': 0, 
             'max_tiempo': DURACION_EXPLOSION,
             'radio': 0, 
-            'max_radio': 30,
+            'max_radio': 25,
             'color': AMARILLO_FUEGO
         })
         
@@ -652,25 +642,27 @@ class Juego:
             'tiempo': 0,
             'max_tiempo': DURACION_EXPLOSION,
             'radio': 5,
-            'max_radio': 50,
+            'max_radio': 40,
             'color': BLANCO_BRILLANTE
         })
         
-        # Destello central
-        self.efectos.append({
-            'tipo': 'destello',
-            'x': x, 'y': y,
-            'tiempo': 0,
-            'max_tiempo': DURACION_DESTELLO,
-            'radio': 15,
-            'color': BLANCO_BRILLANTE
-        })
+        # Destello central (solo si no hay muchos efectos)
+        if len(self.efectos) < MAX_EFECTOS - 10:
+            self.efectos.append({
+                'tipo': 'destello',
+                'x': x, 'y': y,
+                'tiempo': 0,
+                'max_tiempo': DURACION_DESTELLO,
+                'radio': 12,
+                'color': BLANCO_BRILLANTE
+            })
         
         # Partículas de la explosión
         colores_fuego = [AMARILLO_FUEGO, NARANJA_FUEGO, ROJO_FUEGO]
-        for _ in range(PARTICULAS_EXPLOSION):
+        num_particulas = min(PARTICULAS_EXPLOSION, (MAX_EFECTOS - len(self.efectos)) // 2)
+        for _ in range(num_particulas):
             angulo = random.uniform(0, 2 * math.pi)
-            velocidad = random.uniform(3, 7)
+            velocidad = random.uniform(2, 5)
             self.efectos.append({
                 'tipo': 'particula',
                 'x': x, 'y': y,
@@ -678,26 +670,27 @@ class Juego:
                 'dy': math.sin(angulo) * velocidad,
                 'tiempo': 0,
                 'max_tiempo': DURACION_EXPLOSION,
-                'radio': random.randint(2, 5),
+                'radio': random.randint(2, 4),
                 'color': random.choice(colores_fuego),
-                'velocidad_rotacion': random.uniform(-0.2, 0.2)
+                'velocidad_rotacion': random.uniform(-0.1, 0.1)
             })
             
-        # Humo
-        for _ in range(PARTICULAS_EXPLOSION // 2):
-            angulo = random.uniform(0, 2 * math.pi)
-            velocidad = random.uniform(1, 3)
-            self.efectos.append({
-                'tipo': 'humo',
-                'x': x, 'y': y,
-                'dx': math.cos(angulo) * velocidad,
-                'dy': math.sin(angulo) * velocidad - 0.5,  # El humo sube
-                'tiempo': 0,
-                'max_tiempo': DURACION_EXPLOSION * 1.5,
-                'radio': random.randint(4, 8),
-                'color': GRIS,
-                'opacidad': random.randint(128, 200)
-            })
+        # Humo (reducido y solo si hay espacio)
+        if len(self.efectos) < MAX_EFECTOS - 5:
+            for _ in range(min(3, (MAX_EFECTOS - len(self.efectos)))):
+                angulo = random.uniform(0, 2 * math.pi)
+                velocidad = random.uniform(1, 2)
+                self.efectos.append({
+                    'tipo': 'humo',
+                    'x': x, 'y': y,
+                    'dx': math.cos(angulo) * velocidad,
+                    'dy': math.sin(angulo) * velocidad - 0.3,
+                    'tiempo': 0,
+                    'max_tiempo': DURACION_EXPLOSION,
+                    'radio': random.randint(3, 6),
+                    'color': GRIS,
+                    'opacidad': random.randint(100, 180)
+                })
         
         # Reproducir sonido de explosión
         if hasattr(self, 'sonidos') and 'explosion' in self.sonidos:
@@ -754,103 +747,51 @@ class Juego:
         """Dibuja los efectos visuales."""
         for efecto in self.efectos:
             if efecto['tipo'] == 'explosion':
-                alpha = int(255 * (1 - efecto['tiempo'] / efecto['max_tiempo']))
-                color = (*efecto['color'], alpha)
-                
-                # Crear superficie con alpha para la explosión
-                radio_total = efecto['radio'] * 2
-                surf = pygame.Surface((radio_total * 2, radio_total * 2), pygame.SRCALPHA)
-                centro = (radio_total, radio_total)
-                
-                # Dibujar varios círculos concéntricos con diferentes opacidades
-                for i in range(4):
-                    radio_actual = efecto['radio'] * (1 - i * 0.2)
-                    alpha_actual = alpha * (1 - i * 0.2)
-                    color_actual = (*efecto['color'], int(alpha_actual))
-                    pygame.draw.circle(surf, color_actual, centro, int(radio_actual))
-                
-                # Dibujar anillo exterior brillante
-                pygame.draw.circle(surf, (*BLANCO_BRILLANTE, alpha // 3), 
-                                centro, efecto['radio'], 2)
-                
-                self.pantalla.blit(surf, (efecto['x'] - radio_total, efecto['y'] - radio_total))
+                alpha = int(200 * (1 - efecto['tiempo'] / efecto['max_tiempo']))
+                # Dibujar directamente en la pantalla
+                pygame.draw.circle(self.pantalla, (*efecto['color'], alpha), 
+                                (int(efecto['x']), int(efecto['y'])), 
+                                efecto['radio'])
+                pygame.draw.circle(self.pantalla, (*BLANCO_BRILLANTE, alpha // 2), 
+                                (int(efecto['x']), int(efecto['y'])), 
+                                max(1, efecto['radio'] - 2))
             
             elif efecto['tipo'] == 'onda':
-                alpha = int(128 * (1 - efecto['tiempo'] / efecto['max_tiempo']))
-                
-                # Crear superficie para la onda expansiva
-                radio_total = efecto['radio'] * 2
-                surf = pygame.Surface((radio_total * 2, radio_total * 2), pygame.SRCALPHA)
-                centro = (radio_total, radio_total)
-                
-                # Dibujar onda con degradado
-                pygame.draw.circle(surf, (*efecto['color'], alpha), centro, efecto['radio'], 2)
-                pygame.draw.circle(surf, (*efecto['color'], alpha // 2), 
-                                centro, int(efecto['radio'] * 0.9), 1)
-                
-                self.pantalla.blit(surf, (efecto['x'] - radio_total, efecto['y'] - radio_total))
+                alpha = int(100 * (1 - efecto['tiempo'] / efecto['max_tiempo']))
+                pygame.draw.circle(self.pantalla, (*efecto['color'], alpha), 
+                                (int(efecto['x']), int(efecto['y'])), 
+                                efecto['radio'], 2)
             
             elif efecto['tipo'] == 'destello':
-                alpha = int(255 * (1 - efecto['tiempo'] / efecto['max_tiempo']))
-                
-                # Crear superficie para el destello
-                surf = pygame.Surface((efecto['radio'] * 4, efecto['radio'] * 4), pygame.SRCALPHA)
-                centro = (efecto['radio'] * 2, efecto['radio'] * 2)
-                
-                # Dibujar destello con brillo central
-                pygame.draw.circle(surf, (*efecto['color'], alpha), centro, efecto['radio'])
-                pygame.draw.circle(surf, (*BLANCO, alpha // 2), centro, efecto['radio'] // 2)
-                
-                self.pantalla.blit(surf, (efecto['x'] - centro[0], efecto['y'] - centro[1]))
+                alpha = int(200 * (1 - efecto['tiempo'] / efecto['max_tiempo']))
+                pygame.draw.circle(self.pantalla, (*efecto['color'], alpha), 
+                                (int(efecto['x']), int(efecto['y'])), 
+                                efecto['radio'])
             
             elif efecto['tipo'] == 'particula':
-                alpha = int(255 * (1 - efecto['tiempo'] / efecto['max_tiempo']))
+                alpha = int(200 * (1 - efecto['tiempo'] / efecto['max_tiempo']))
                 color = (*efecto['color'], alpha)
-                
-                # Crear superficie con alpha para la partícula
-                surf = pygame.Surface((efecto['radio'] * 4, efecto['radio'] * 4), pygame.SRCALPHA)
-                centro = (efecto['radio'] * 2, efecto['radio'] * 2)
-                
-                if 'angulo' in efecto:
-                    # Dibujar partícula rotada (como una chispa)
-                    puntos = []
-                    for i in range(5):
-                        angulo = efecto.get('angulo', 0) + i * (2 * math.pi / 5)
-                        radio = efecto['radio'] * (1.5 if i % 2 == 0 else 1)
-                        x = centro[0] + math.cos(angulo) * radio
-                        y = centro[1] + math.sin(angulo) * radio
-                        puntos.append((x, y))
-                    pygame.draw.polygon(surf, color, puntos)
-                else:
-                    # Dibujar partícula circular
-                    pygame.draw.circle(surf, color, centro, efecto['radio'])
-                    pygame.draw.circle(surf, (*BLANCO, alpha // 2), 
-                                    centro, efecto['radio'] // 2)
-                
-                self.pantalla.blit(surf, (efecto['x'] - centro[0], efecto['y'] - centro[1]))
+                pygame.draw.circle(self.pantalla, color,
+                                (int(efecto['x']), int(efecto['y'])),
+                                efecto['radio'])
             
             elif efecto['tipo'] == 'humo':
-                # Crear superficie para el humo
-                surf = pygame.Surface((efecto['radio'] * 4, efecto['radio'] * 4), pygame.SRCALPHA)
-                centro = (efecto['radio'] * 2, efecto['radio'] * 2)
-                
-                # Dibujar humo con degradado
                 color = (*efecto['color'], efecto['opacidad'])
-                pygame.draw.circle(surf, color, centro, efecto['radio'])
-                
-                self.pantalla.blit(surf, (efecto['x'] - centro[0], efecto['y'] - centro[1]))
+                pygame.draw.circle(self.pantalla, color,
+                                (int(efecto['x']), int(efecto['y'])),
+                                efecto['radio'])
             
             elif efecto['tipo'] == 'rastro':
                 color = (*efecto['color'], efecto['opacidad'])
-                pygame.draw.circle(self.pantalla, color, 
-                                 (int(efecto['x']), int(efecto['y'])), 
-                                 efecto['radio'])
-                                 
+                pygame.draw.circle(self.pantalla, color,
+                                (int(efecto['x']), int(efecto['y'])),
+                                efecto['radio'])
+            
             elif efecto['tipo'] == 'propulsion':
                 color = (*efecto['color'], efecto['opacidad'])
                 pygame.draw.circle(self.pantalla, color,
-                                 (int(efecto['x']), int(efecto['y'])),
-                                 max(1, int(efecto['radio'])))
+                                (int(efecto['x']), int(efecto['y'])),
+                                max(1, int(efecto['radio'])))
     
     def reiniciar_juego(self):
         """Reinicia el juego a su estado inicial."""
