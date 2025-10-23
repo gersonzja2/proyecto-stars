@@ -602,19 +602,15 @@ class Juego:
         self.pantalla.blit(texto_puntuacion1, (10, 10))
         self.pantalla.blit(texto_puntuacion2, (10, 40))
         
-        # Instrucciones divididas en líneas más cortas
+        # Instrucciones en la parte superior
         instrucciones = [
-            "Tanque Azul: W=Avanzar/Disparar, A/D=Girar",
-            "Tanque Rojo: I=Avanzar/Disparar, J/L=Girar",
-            "R=Reiniciar (cualquier momento) | M=Música | +/-=Volumen | ESC=Salir"
+            "Azul: W/A/D | Rojo: I/J/L",
+            "R=Reiniciar | M=Música | +/-=Volumen | ESC=Salir"
         ]
-        
-        # Posicionar las instrucciones en la parte inferior
         for i, instruccion in enumerate(instrucciones):
             texto = self.fuente_pequeña.render(instruccion, True, AMARILLO)
-            # Centrar horizontalmente y posicionar en la parte inferior
             x_pos = (ANCHO_VENTANA - texto.get_width()) // 2
-            y_pos = ALTO_VENTANA - 80 + i * 20
+            y_pos = 15 + i * 25
             self.pantalla.blit(texto, (x_pos, y_pos))
         
         # Mostrar estado de la música y volumen en la esquina superior derecha
@@ -666,6 +662,20 @@ class Juego:
                 
         pygame.quit()
 
+def main():
+    """Función principal que inicia el juego."""
+    print("¡Bienvenido al Juego de Tanques!")
+    print("Controles:")
+    print("Tanque Azul: W=Avanzar/Disparar, A/D=Girar")
+    print("Tanque Rojo: I=Avanzar/Disparar, J/L=Girar")
+    print("R=Reiniciar | M=Música | +/-=Volumen | ESC=Salir")
+    
+    try:
+        juego = Juego()
+        juego.ejecutar()
+    except Exception as e:
+        print(f"Error al ejecutar el juego: {e}")
+        print("Asegúrate de tener pygame instalado: pip install pygame")
+
 if __name__ == "__main__":
-    juego = Juego()
-    juego.ejecutar()
+    main()
