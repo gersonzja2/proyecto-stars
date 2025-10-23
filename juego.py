@@ -2,6 +2,7 @@ import pygame
 import math
 import random
 import time
+from enum import Enum, auto
 
 # Inicializar pygame
 pygame.init()
@@ -26,6 +27,11 @@ MORADO = (128, 0, 128)
 VERDE_CLARO = (144, 238, 144)
 GRIS_CLARO = (200, 200, 200)
 MARRON_LADRILLO = (150, 75, 0)
+
+class TipoObstaculo(Enum):
+    ARBUSTO = auto()
+    ROCA = auto()
+    MURO = auto()
 
 class Tanque:
     def __init__(self, x, y, color, teclas):
@@ -177,18 +183,18 @@ class Obstaculo:
     def __init__(self, x, y, tipo):
         self.x = x
         self.y = y
-        self.tipo = tipo  # 'arbusto', 'roca' o 'muro'
+        self.tipo = tipo  # TipoObstaculo.ARBUSTO, .ROCA o .MURO
         self.ancho = 40
         self.alto = 40
         self.rect = pygame.Rect(x, y, self.ancho, self.alto)
 
-        if tipo == 'arbusto':
+        if tipo == TipoObstaculo.ARBUSTO:
             self.destructible = True
             self.salud = 2
-        elif tipo == 'muro':
+        elif tipo == TipoObstaculo.MURO:
             self.destructible = True
             self.salud = 5  # Más resistente que un arbusto
-        else:  # 'roca'
+        else:  # TipoObstaculo.ROCA
             self.destructible = False
             self.salud = 999
 
@@ -201,7 +207,7 @@ class Obstaculo:
         return False
         
     def dibujar(self, pantalla):
-        if self.tipo == 'arbusto':
+        if self.tipo == TipoObstaculo.ARBUSTO:
             # Base del arbusto
             pygame.draw.rect(pantalla, MARRON, (self.x + 15, self.y + 30, 10, 10))
             
@@ -217,7 +223,7 @@ class Obstaculo:
             if self.salud < self.salud_max:
                 pygame.draw.circle(pantalla, ROJO, (self.x + 20, self.y + 20), 3)
                 
-        elif self.tipo == 'roca':
+        elif self.tipo == TipoObstaculo.ROCA:
             # Base de la roca
             pygame.draw.rect(pantalla, GRIS, self.rect)
             pygame.draw.rect(pantalla, GRIS_CLARO, (self.x + 2, self.y + 2, self.ancho - 4, self.alto - 4))
@@ -233,7 +239,7 @@ class Obstaculo:
             # Sombras
             pygame.draw.line(pantalla, (40, 40, 40), (self.x, self.y + 35), (self.x + 40, self.y + 35), 2)
         
-        elif self.tipo == 'muro':
+        elif self.tipo == TipoObstaculo.MURO:
             # Dibujar muro de ladrillos
             pygame.draw.rect(pantalla, MARRON_LADRILLO, self.rect)
             for fila in range(4):
@@ -340,19 +346,19 @@ class Juego:
         num_rocas = 15
         for _ in range(num_rocas):
             x, y = self.generar_posicion_segura()
-            self.obstaculos.append(Obstaculo(x, y, 'roca'))
+            self.obstaculos.append(Obstaculo(x, y, TipoObstaculo.ROCA))
             
         # Crear arbustos (destructibles) - posiciones aleatorias
         num_arbustos = 20
         for _ in range(num_arbustos):
             x, y = self.generar_posicion_segura()
-            self.obstaculos.append(Obstaculo(x, y, 'arbusto'))
+            self.obstaculos.append(Obstaculo(x, y, TipoObstaculo.ARBUSTO))
 
         # Crear muros (destructibles y más resistentes)
         num_muros = 10
         for _ in range(num_muros):
             x, y = self.generar_posicion_segura()
-            self.obstaculos.append(Obstaculo(x, y, 'muro'))
+            self.obstaculos.append(Obstaculo(x, y, TipoObstaculo.MURO))
         
         # Verificar que no haya obstáculos superpuestos y separar si es necesario
         self.separar_obstaculos()
