@@ -34,7 +34,7 @@ class TipoObstaculo(Enum):
     MURO = auto()
 
 class Tanque:
-    def __init__(self, x, y, color, teclas):
+    def __init__(self, x, y, color, teclas, juego):
         self.x = x
         self.y = y
         self.ancho = 30
@@ -50,6 +50,10 @@ class Tanque:
         self.velocidad_disparo = 500  # ms entre disparos
         self.invulnerable = False
         self.tiempo_invulnerable = 0
+        self.juego = juego  # Referencia al juego para efectos de sonido
+        self.motor_sonando = False
+        self.ultimo_rastro = 0
+        self.tiempo_entre_rastros = 50  # ms entre efectos de rastro
         
     def mover(self, teclas_presionadas, obstaculos, otros_tanques):
         # Sistema de rotación y movimiento direccional
@@ -66,10 +70,35 @@ class Tanque:
             self.angulo += 0.1  # Rotar hacia la derecha
         
         # Movimiento hacia adelante con tecla de avance
+        tiempo_actual = pygame.time.get_ticks()
         if teclas_presionadas[self.teclas['avanzar']]:
             movimiento_x = math.cos(self.angulo) * self.velocidad
             movimiento_y = math.sin(self.angulo) * self.velocidad
             disparar = True  # Disparar automáticamente al moverse
+            
+            # Efecto de sonido del motor
+            if hasattr(self.juego, 'sonidos') and 'motor' in self.juego.sonidos and not self.motor_sonando:
+                self.juego.sonidos['motor'].play(-1)  # Loop continuo
+                self.motor_sonando = True
+                
+            # Crear efecto de rastro
+            if tiempo_actual - self.ultimo_rastro >= self.tiempo_entre_rastros:
+                self.juego.efectos.append({
+                    'tipo': 'rastro',
+                    'x': self.x + self.ancho//2,
+                    'y': self.y + self.alto//2,
+                    'radio': 3,
+                    'tiempo': 0,
+                    'max_tiempo': 20,
+                    'color': self.color,
+                    'opacidad': 128
+                })
+                self.ultimo_rastro = tiempo_actual
+        else:
+            # Detener sonido del motor
+            if self.motor_sonando and hasattr(self.juego, 'sonidos') and 'motor' in self.juego.sonidos:
+                self.juego.sonidos['motor'].stop()
+                self.motor_sonando = False
             
         nueva_x += movimiento_x
         nueva_y += movimiento_y
@@ -117,6 +146,9 @@ class Tanque:
             cañon_y = self.y + self.alto // 2 + math.sin(self.angulo) * 25
             
             self.ultimo_disparo = tiempo_actual
+            # Reproducir sonido de disparo si está disponible
+            if hasattr(self.juego, 'sonidos') and 'disparo' in self.juego.sonidos:
+                self.juego.sonidos['disparo'].play()
             return Bala(cañon_x, cañon_y, self.angulo, self.color)
         return None
         
@@ -264,13 +296,13 @@ class Juego:
             'avanzar': pygame.K_w,
             'izquierda': pygame.K_a,
             'derecha': pygame.K_d
-        })
+        }, self)
         
         self.tanque2 = Tanque(800, 500, ROJO, {
             'avanzar': pygame.K_i,
             'izquierda': pygame.K_j,
             'derecha': pygame.K_l
-        })
+        }, self)
         
         # Listas de objetos del juego
         self.balas = []
@@ -292,7 +324,7 @@ class Juego:
         self.volumen_actual = 0.3
         
     def inicializar_musica(self):
-        """Inicializa y reproduce la música de fondo."""
+        """Inicializa y reproduce la música de fondo y efectos de sonido."""
         try:
             # Inicializar el mixer de pygame
             pygame.mixer.init(frequency=22050, size=-16, channels=2, buffer=512)
@@ -302,13 +334,27 @@ class Juego:
             pygame.mixer.music.set_volume(0.3)  # Volumen al 30%
             pygame.mixer.music.play(-1)  # -1 para reproducir en loop infinito
             
-            print("Música de fondo cargada correctamente")
+            # Cargar efectos de sonido
+            self.sonidos = {
+                'disparo': pygame.mixer.Sound("disparo.wav"),
+                'explosion': pygame.mixer.Sound("explosion.wav"),
+                'motor': pygame.mixer.Sound("motor.wav"),
+                'golpe': pygame.mixer.Sound("golpe.wav")
+            }
+            
+            # Ajustar volumen de los efectos
+            for sonido in self.sonidos.values():
+                sonido.set_volume(0.4)
+            
+            print("Música y efectos de sonido cargados correctamente")
         except pygame.error as e:
-            print(f"Error al cargar la música: {e}")
-            print("El juego continuará sin música de fondo")
-        except FileNotFoundError:
-            print("Archivo megalovia.mp3 no encontrado")
-            print("El juego continuará sin música de fondo")
+            print(f"Error al cargar la música o efectos: {e}")
+            print("El juego continuará sin audio")
+            self.sonidos = {}
+        except FileNotFoundError as e:
+            print(f"Archivo de audio no encontrado: {e}")
+            print("El juego continuará sin audio")
+            self.sonidos = {}
     
     def toggle_musica(self):
         """Pausa o reanuda la música de fondo."""
@@ -545,17 +591,53 @@ class Juego:
             self.tanque2.invulnerable = False
     
     def crear_efecto_explosion(self, x, y):
-        """Crea un efecto visual de explosión."""
+        """Crea un efecto visual de explosión con partículas."""
+        # Efecto principal de explosión
         self.efectos.append({
-            'x': x, 'y': y, 'tiempo': 0, 'max_tiempo': 30,
-            'radio': 0, 'max_radio': 20
+            'tipo': 'explosion',
+            'x': x, 'y': y,
+            'tiempo': 0, 'max_tiempo': 30,
+            'radio': 0, 'max_radio': 20,
+            'color': (255, 165, 0)  # Naranja
         })
+        
+        # Crear partículas de la explosión
+        num_particulas = 12
+        for _ in range(num_particulas):
+            angulo = random.uniform(0, 2 * math.pi)
+            velocidad = random.uniform(2, 5)
+            self.efectos.append({
+                'tipo': 'particula',
+                'x': x, 'y': y,
+                'dx': math.cos(angulo) * velocidad,
+                'dy': math.sin(angulo) * velocidad,
+                'tiempo': 0, 'max_tiempo': 45,
+                'radio': random.randint(2, 4),
+                'color': random.choice([(255, 165, 0), (255, 69, 0), (255, 0, 0)])  # Colores de fuego
+            })
+        
+        # Reproducir sonido de explosión
+        if hasattr(self, 'sonidos') and 'explosion' in self.sonidos:
+            self.sonidos['explosion'].play()
     
     def actualizar_efectos(self):
         """Actualiza los efectos visuales."""
         for efecto in self.efectos[:]:
             efecto['tiempo'] += 1
-            efecto['radio'] = int((efecto['tiempo'] / efecto['max_tiempo']) * efecto['max_radio'])
+            
+            if efecto['tipo'] == 'explosion':
+                efecto['radio'] = int((efecto['tiempo'] / efecto['max_tiempo']) * efecto['max_radio'])
+            elif efecto['tipo'] == 'particula':
+                # Actualizar posición de la partícula
+                efecto['x'] += efecto['dx']
+                efecto['y'] += efecto['dy']
+                # Simular gravedad
+                efecto['dy'] += 0.1
+                # Reducir velocidad gradualmente
+                efecto['dx'] *= 0.98
+                efecto['dy'] *= 0.98
+            elif efecto['tipo'] == 'rastro':
+                efecto['opacidad'] = int(255 * (1 - efecto['tiempo'] / efecto['max_tiempo']))
             
             if efecto['tiempo'] >= efecto['max_tiempo']:
                 self.efectos.remove(efecto)
@@ -563,13 +645,37 @@ class Juego:
     def dibujar_efectos(self):
         """Dibuja los efectos visuales."""
         for efecto in self.efectos:
-            alpha = int(255 * (1 - efecto['tiempo'] / efecto['max_tiempo']))
-            color = (255, 100, 0, alpha)
+            if efecto['tipo'] == 'explosion':
+                alpha = int(255 * (1 - efecto['tiempo'] / efecto['max_tiempo']))
+                color = (*efecto['color'], alpha)
+                
+                # Crear superficie con alpha para la explosión
+                surf = pygame.Surface((efecto['radio'] * 2, efecto['radio'] * 2), pygame.SRCALPHA)
+                pygame.draw.circle(surf, color, (efecto['radio'], efecto['radio']), efecto['radio'])
+                
+                # Dibujar anillo exterior
+                if efecto['radio'] > 2:
+                    pygame.draw.circle(surf, (*efecto['color'], alpha//2), 
+                                    (efecto['radio'], efecto['radio']), 
+                                    efecto['radio'], 2)
+                
+                self.pantalla.blit(surf, (efecto['x'] - efecto['radio'], efecto['y'] - efecto['radio']))
             
-            # Crear superficie con alpha
-            surf = pygame.Surface((efecto['radio'] * 2, efecto['radio'] * 2), pygame.SRCALPHA)
-            pygame.draw.circle(surf, color, (efecto['radio'], efecto['radio']), efecto['radio'])
-            self.pantalla.blit(surf, (efecto['x'] - efecto['radio'], efecto['y'] - efecto['radio']))
+            elif efecto['tipo'] == 'particula':
+                alpha = int(255 * (1 - efecto['tiempo'] / efecto['max_tiempo']))
+                color = (*efecto['color'], alpha)
+                
+                # Crear superficie con alpha para la partícula
+                surf = pygame.Surface((efecto['radio'] * 2, efecto['radio'] * 2), pygame.SRCALPHA)
+                pygame.draw.circle(surf, color, (efecto['radio'], efecto['radio']), efecto['radio'])
+                
+                self.pantalla.blit(surf, (efecto['x'] - efecto['radio'], efecto['y'] - efecto['radio']))
+            
+            elif efecto['tipo'] == 'rastro':
+                color = (*efecto['color'], efecto['opacidad'])
+                pygame.draw.circle(self.pantalla, color, 
+                                 (int(efecto['x']), int(efecto['y'])), 
+                                 efecto['radio'])
     
     def reiniciar_juego(self):
         """Reinicia el juego a su estado inicial."""
@@ -577,13 +683,13 @@ class Juego:
             'avanzar': pygame.K_w,
             'izquierda': pygame.K_a,
             'derecha': pygame.K_d
-        })
+        }, self)
         
         self.tanque2 = Tanque(800, 500, ROJO, {
             'avanzar': pygame.K_i,
             'izquierda': pygame.K_j,
             'derecha': pygame.K_l
-        })
+        }, self)
         
         self.balas = []
         self.efectos = []
