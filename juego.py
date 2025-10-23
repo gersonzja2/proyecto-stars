@@ -25,6 +25,7 @@ NARANJA = (255, 165, 0)
 MORADO = (128, 0, 128)
 VERDE_CLARO = (144, 238, 144)
 GRIS_CLARO = (200, 200, 200)
+MARRON_LADRILLO = (150, 75, 0)
 
 class Tanque:
     def __init__(self, x, y, color, teclas):
@@ -176,12 +177,21 @@ class Obstaculo:
     def __init__(self, x, y, tipo):
         self.x = x
         self.y = y
-        self.tipo = tipo  # 'arbusto' o 'roca'
-        self.destructible = (tipo == 'arbusto')
+        self.tipo = tipo  # 'arbusto', 'roca' o 'muro'
         self.ancho = 40
         self.alto = 40
         self.rect = pygame.Rect(x, y, self.ancho, self.alto)
-        self.salud = 2 if self.destructible else 999
+
+        if tipo == 'arbusto':
+            self.destructible = True
+            self.salud = 2
+        elif tipo == 'muro':
+            self.destructible = True
+            self.salud = 5  # Más resistente que un arbusto
+        else:  # 'roca'
+            self.destructible = False
+            self.salud = 999
+
         self.salud_max = self.salud
         
     def recibir_daño(self):
@@ -207,7 +217,7 @@ class Obstaculo:
             if self.salud < self.salud_max:
                 pygame.draw.circle(pantalla, ROJO, (self.x + 20, self.y + 20), 3)
                 
-        else:  # roca
+        elif self.tipo == 'roca':
             # Base de la roca
             pygame.draw.rect(pantalla, GRIS, self.rect)
             pygame.draw.rect(pantalla, GRIS_CLARO, (self.x + 2, self.y + 2, self.ancho - 4, self.alto - 4))
@@ -222,6 +232,17 @@ class Obstaculo:
             
             # Sombras
             pygame.draw.line(pantalla, (40, 40, 40), (self.x, self.y + 35), (self.x + 40, self.y + 35), 2)
+        
+        elif self.tipo == 'muro':
+            # Dibujar muro de ladrillos
+            pygame.draw.rect(pantalla, MARRON_LADRILLO, self.rect)
+            for fila in range(4):
+                for col in range(4):
+                    color_ladrillo = (139, 69, 19) if (fila + col) % 2 == 0 else (160, 82, 45)
+                    ladrillo_rect = pygame.Rect(self.x + col * 10, self.y + fila * 10, 10, 10)
+                    pygame.draw.rect(pantalla, color_ladrillo, ladrillo_rect)
+                    pygame.draw.rect(pantalla, (50, 50, 50), ladrillo_rect, 1) # Juntas
+
 
 class Juego:
     def __init__(self):
@@ -316,16 +337,22 @@ class Juego:
         self.obstaculos = []
         
         # Crear rocas (no destructibles) - posiciones aleatorias
-        num_rocas = 12
+        num_rocas = 15
         for _ in range(num_rocas):
             x, y = self.generar_posicion_segura()
             self.obstaculos.append(Obstaculo(x, y, 'roca'))
             
         # Crear arbustos (destructibles) - posiciones aleatorias
-        num_arbustos = 16
+        num_arbustos = 20
         for _ in range(num_arbustos):
             x, y = self.generar_posicion_segura()
             self.obstaculos.append(Obstaculo(x, y, 'arbusto'))
+
+        # Crear muros (destructibles y más resistentes)
+        num_muros = 10
+        for _ in range(num_muros):
+            x, y = self.generar_posicion_segura()
+            self.obstaculos.append(Obstaculo(x, y, 'muro'))
         
         # Verificar que no haya obstáculos superpuestos y separar si es necesario
         self.separar_obstaculos()
