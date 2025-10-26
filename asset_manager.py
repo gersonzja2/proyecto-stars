@@ -28,7 +28,12 @@ class AssetManager:
                 'disparo': pygame.mixer.Sound(s.SOUND_SHOT),
                 'explosion': pygame.mixer.Sound(s.SOUND_EXPLOSION),
                 'motor': pygame.mixer.Sound(s.SOUND_ENGINE),
-                'golpe': pygame.mixer.Sound(s.SOUND_HIT)
+                'golpe': pygame.mixer.Sound(s.SOUND_HIT),
+                'ricochet': pygame.mixer.Sound(s.SOUND_RICOCHET),
+                'dano_obstaculo': pygame.mixer.Sound(s.SOUND_OBSTACLE_HIT),
+                'pausa_in': pygame.mixer.Sound(s.SOUND_PAUSE_IN),
+                'pausa_out': pygame.mixer.Sound(s.SOUND_PAUSE_OUT),
+                'respawn': pygame.mixer.Sound(s.SOUND_RESPAWN)
             }
             # Ajustar volumen de los efectos
             for sound in self.sounds.values():

@@ -155,3 +155,50 @@ class Rastro(Efecto):
             surf = pygame.Surface((self.radio * 2, self.radio * 2), pygame.SRCALPHA)
             pygame.draw.circle(surf, (*self.color, opacidad), (self.radio, self.radio), self.radio)
             pantalla.blit(surf, (int(self.x) - self.radio, int(self.y) - self.radio))
+
+class DestelloDisparo(Efecto):
+    """Un destello en forma de estrella en la boca del cañón al disparar."""
+    def __init__(self, x, y, angulo):
+        super().__init__(x, y, 6) # Duración muy corta
+        self.angulo = angulo
+        self.color = s.BLANCO_BRILLANTE
+        self.longitud = 15
+
+    def dibujar(self, pantalla):
+        progreso = self.get_progreso()
+        longitud_actual = self.longitud * (1 - progreso)
+        if longitud_actual > 0:
+            # Dibuja una forma de estrella/cruz
+            p1 = (self.x + math.cos(self.angulo) * longitud_actual, self.y + math.sin(self.angulo) * longitud_actual)
+            p2 = (self.x - math.cos(self.angulo) * longitud_actual, self.y - math.sin(self.angulo) * longitud_actual)
+            p3 = (self.x + math.cos(self.angulo + math.pi/2) * longitud_actual / 2, self.y + math.sin(self.angulo + math.pi/2) * longitud_actual / 2)
+            p4 = (self.x - math.cos(self.angulo + math.pi/2) * longitud_actual / 2, self.y - math.sin(self.angulo + math.pi/2) * longitud_actual / 2)
+            
+            alpha = int(255 * (1 - progreso))
+            color = (*self.color, alpha)
+
+            # Usamos una superficie para aplicar el alpha correctamente
+            ancho, alto = s.ANCHO_VENTANA, s.ALTO_VENTANA
+            surf = pygame.Surface((ancho, alto), pygame.SRCALPHA)
+            pygame.draw.line(pantalla, color, p1, p2, 3)
+            pygame.draw.line(pantalla, color, p3, p4, 3)
+
+class Chispas(Particula):
+    """Partículas de chispas que se generan al impactar superficies duras."""
+    def __init__(self, x, y, dx, dy):
+        super().__init__(x, y, dx, dy, s.AMARILLO)
+        self.max_tiempo = random.randint(15, 25) # Las chispas duran menos
+        self.radio = random.randint(1, 3)
+
+    def actualizar(self):
+        super().actualizar()
+        # Las chispas no tienen tanta fricción y caen más rápido
+        self.dy += 0.25
+        self.dx *= 0.98
+        self.dy *= 0.98
+
+    def dibujar(self, pantalla):
+        # Las chispas son líneas en lugar de círculos para dar sensación de velocidad
+        x2 = self.x - self.dx * 2
+        y2 = self.y - self.dy * 2
+        pygame.draw.line(pantalla, self.color, (self.x, self.y), (x2, y2), self.radio)

@@ -54,7 +54,7 @@ Para ejecutar este juego, necesitas tener Python y la librería Pygame instalado
     ```
 
 2.  **Archivo de Música:**
-    Asegúrate de tener el archivo de música `megalovia.mp3` en la misma carpeta que `juego.py`.
+    Asegúrate de tener todos los archivos de sonido y música (`.wav`, `.mp3`) dentro de una carpeta llamada `assets/sounds/` en el directorio principal del proyecto.
 
 3.  **Ejecutar el juego:**
     ```bash

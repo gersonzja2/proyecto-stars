@@ -78,6 +78,12 @@ class Tanque:
             if tiempo_actual - self.ultimo_rastro >= self.tiempo_entre_rastros:
                 self.juego.efectos.append(effects.Rastro(self.x + self.ancho//2, self.y + self.alto//2, self.color))
                 self.ultimo_rastro = tiempo_actual
+
+            # Crear efecto de humo si el tanque está dañado
+            if self.vidas == 1 and tiempo_actual - self.ultimo_rastro >= self.tiempo_entre_rastros * 2:
+                angulo_humo = self.angulo + random.uniform(-0.5, 0.5) + math.pi # Hacia atrás
+                self.juego.efectos.append(effects.Humo(self.x + self.ancho//2, self.y + self.alto//2, math.cos(angulo_humo)*0.5, math.sin(angulo_humo)*0.5))
+
         else:
             # Detener sonido del motor
             if self.motor_sonando and 'motor' in self.juego.assets.sounds:
@@ -138,6 +144,10 @@ class Tanque:
             # Reproducir sonido de disparo si está disponible
             if 'disparo' in self.juego.assets.sounds:
                 self.juego.assets.sounds['disparo'].play()
+            
+            # Crear efecto de destello de disparo
+            self.juego.efectos.append(effects.DestelloDisparo(cañon_x, cañon_y, self.angulo))
+
             return Bala(cañon_x, cañon_y, self.angulo, self.color)
         return None
         
@@ -367,9 +377,13 @@ class Juego:
         """Pausa o reanuda el juego."""
         if self.estado == GameState.JUGANDO:
             self.estado = GameState.PAUSA
+            if 'pausa_in' in self.assets.sounds:
+                self.assets.sounds['pausa_in'].play()
             print("Juego pausado")
         elif self.estado == GameState.PAUSA:
             self.estado = GameState.JUGANDO
+            if 'pausa_out' in self.assets.sounds:
+                self.assets.sounds['pausa_out'].play()
             print("Juego reanudado")
     
     def actualizar(self, dt):
@@ -427,6 +441,8 @@ class Juego:
             tanque_tirador.puntuacion += 10
             tanque_impactado.invulnerable = True
             tanque_impactado.tiempo_invulnerable = pygame.time.get_ticks()
+            if 'respawn' in self.assets.sounds:
+                self.assets.sounds['respawn'].play()
             
             self.crear_efecto_explosion(tanque_impactado.x + 15, tanque_impactado.y + 15)
             self.balas.remove(bala)
@@ -444,6 +460,15 @@ class Juego:
                             self.obstaculos.remove(obstaculo)
                             # Efecto de destrucción
                             self.crear_efecto_explosion(obstaculo.x + 20, obstaculo.y + 20)
+                        else:
+                            # Si el obstáculo fue dañado pero no destruido, reproducir sonido de daño
+                            self.assets.sounds['dano_obstaculo'].play()
+                    elif isinstance(obstaculo, Roca): # Si choca con una roca
+                        self.crear_efecto_chispas(bala.x, bala.y)
+                        if 'ricochet' in self.assets.sounds:
+                            self.assets.sounds['ricochet'].play()
+                    else: # Cualquier otro obstáculo no destructible
+                            self.crear_efecto_explosion(obstaculo.x + 20, obstaculo.y + 20)
                     self.balas.remove(bala)
                     break
             
@@ -456,6 +481,20 @@ class Juego:
                 continue # La bala fue destruida, pasar a la siguiente
             if self._manejar_colision_bala_tanque(bala, self.tanque2, self.tanque1):
                 continue
+            
+            # Colisión con tanques invulnerables (crea chispas)
+            for tanque in self.tanques:
+                if (tanque.vidas > 0 and bala.rect.colliderect(tanque.rect) and
+                    bala.color != tanque.color and tanque.invulnerable):
+                    if bala in self.balas:
+                        self.balas.remove(bala)
+                        self.crear_efecto_chispas(bala.x, bala.y)
+                        if 'golpe' in self.assets.sounds:
+                            self.assets.sounds['golpe'].play()
+                        break # La bala ya no existe, salimos del bucle de tanques
+            if bala not in self.balas:
+                continue
+
     
     def actualizar_invulnerabilidad(self):
         """Actualiza el estado de invulnerabilidad de los tanques."""
@@ -463,6 +502,17 @@ class Juego:
         for tanque in self.tanques:
             if tanque.invulnerable and tiempo_actual - tanque.tiempo_invulnerable > 2000:
                 tanque.invulnerable = False
+
+    def crear_efecto_chispas(self, x, y):
+        """Crea un efecto de chispas en una posición."""
+        num_chispas = min(8, s.MAX_EFECTOS - len(self.efectos))
+        for _ in range(num_chispas):
+            angulo = random.uniform(0, 2 * math.pi)
+            velocidad = random.uniform(1, 4)
+            dx = math.cos(angulo) * velocidad
+            dy = math.sin(angulo) * velocidad
+            self.efectos.append(effects.Chispas(x, y, dx, dy))
+
     
     def crear_efecto_explosion(self, x, y):
         """Crea un efecto visual de explosión con partículas y ondas expansivas."""

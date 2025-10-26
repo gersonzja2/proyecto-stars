@@ -48,8 +48,13 @@ NUM_MUROS = 15
 NUM_CAJAS_MADERA = 10
 
 # ---- RUTAS DE ARCHIVOS DE RECURSOS (ASSETS) ----
-MUSIC_FILE = "megalovia.mp3"
-SOUND_SHOT = "disparo.wav"
-SOUND_EXPLOSION = "explosion.wav"
-SOUND_ENGINE = "motor.wav"
-SOUND_HIT = "golpe.wav"
+MUSIC_FILE = "assets/sounds/megalovia.mp3"
+SOUND_SHOT = "assets/sounds/disparo.wav"
+SOUND_EXPLOSION = "assets/sounds/explosion.wav"
+SOUND_ENGINE = "assets/sounds/motor.wav"
+SOUND_HIT = "assets/sounds/golpe.wav"
+SOUND_RICOCHET = "assets/sounds/ricochet.wav" # Sonido para bala rebotando en roca
+SOUND_OBSTACLE_HIT = "assets/sounds/dano_muro.wav" # Sonido para obstáculo dañado
+SOUND_PAUSE_IN = "assets/sounds/pausa_in.wav" # Sonido al pausar
+SOUND_PAUSE_OUT = "assets/sounds/pausa_out.wav" # Sonido al reanudar
+SOUND_RESPAWN = "assets/sounds/respawn.wav" # Sonido para reaparición/invulnerabilidad
