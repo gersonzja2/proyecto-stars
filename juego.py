@@ -5,20 +5,15 @@ import time
 from enum import Enum, auto
 import settings as s
 
-# Inicializar pygamewa
-pygame.init()
-
-class TipoObstaculo(Enum):
-    ARBUSTO = auto()
-    ROCA = auto()
-    MURO = auto()
-    CAJA_MADERA = auto()
 
 class GameState(Enum):
     """Enum para los estados del juego."""
     JUGANDO = auto()
     PAUSA = auto()
     FIN_PARTIDA = auto()
+
+# Inicializar pygame
+pygame.init()
 
 class Tanque:
     def __init__(self, x, y, color, teclas, juego):
@@ -165,35 +160,40 @@ class Bala:
     def tiempo_agotado(self):
         return self.tiempo_vida >= self.tiempo_max_vida
 
+
 class Obstaculo:
-    def __init__(self, x, y, tipo):
+    """Clase base para todos los obstáculos del juego."""
+    def __init__(self, x, y, salud=1, destructible=False):
         self.x = x
         self.y = y
-        self.tipo = tipo  # TipoObstaculo.ARBUSTO, .ROCA o .MURO
         self.ancho = 40
         self.alto = 40
         self.rect = pygame.Rect(x, y, self.ancho, self.alto)
- 
-        if tipo == TipoObstaculo.ARBUSTO:
-            self.destructible = True
-            self.salud = 2
-        elif tipo == TipoObstaculo.CAJA_MADERA:
-            self.destructible = True
-            self.salud = 3
-        elif tipo == TipoObstaculo.MURO:
-            self.destructible = True
-            self.salud = 5  # Más resistente que un arbusto
-        else:  # TipoObstaculo.ROCA
-            self.destructible = False
-            self.salud = 999
-
+        self.salud = salud
         self.salud_max = self.salud
-        
+        self.destructible = destructible
+
     def recibir_daño(self):
         if self.destructible:
             self.salud -= 1
             return self.salud <= 0
         return False
+
+class Roca(Obstaculo):
+    def __init__(self, x, y):
+        super().__init__(x, y, salud=999, destructible=False)
+
+class Arbusto(Obstaculo):
+    def __init__(self, x, y):
+        super().__init__(x, y, salud=2, destructible=True)
+
+class Muro(Obstaculo):
+    def __init__(self, x, y):
+        super().__init__(x, y, salud=5, destructible=True)
+
+class CajaMadera(Obstaculo):
+    def __init__(self, x, y):
+        super().__init__(x, y, salud=3, destructible=True)
 
 
 class Juego:
@@ -303,22 +303,22 @@ class Juego:
         # Crear rocas (no destructibles) - posiciones aleatorias
         for _ in range(s.NUM_ROCAS):
             x, y = self.generar_posicion_segura()
-            self.obstaculos.append(Obstaculo(x, y, TipoObstaculo.ROCA))
+            self.obstaculos.append(Roca(x, y))
             
         # Crear arbustos (destructibles) - posiciones aleatorias
         for _ in range(s.NUM_ARBUSTOS):
             x, y = self.generar_posicion_segura()
-            self.obstaculos.append(Obstaculo(x, y, TipoObstaculo.ARBUSTO))
+            self.obstaculos.append(Arbusto(x, y))
 
         # Crear muros (destructibles y más resistentes)
         for _ in range(s.NUM_MUROS):
             x, y = self.generar_posicion_segura()
-            self.obstaculos.append(Obstaculo(x, y, TipoObstaculo.MURO))
+            self.obstaculos.append(Muro(x, y))
         
         # Crear cajas de madera (destructibles)
         for _ in range(s.NUM_CAJAS_MADERA):
             x, y = self.generar_posicion_segura()
-            self.obstaculos.append(Obstaculo(x, y, TipoObstaculo.CAJA_MADERA))
+            self.obstaculos.append(CajaMadera(x, y))
 
         # Verificar que no haya obstáculos superpuestos y separar si es necesario
         self.separar_obstaculos()
@@ -711,7 +711,7 @@ class GameRenderer:
         pygame.draw.circle(self.pantalla, s.BLANCO_BRILLANTE, (int(bala.x), int(bala.y)), bala.radio - 1)
 
     def dibujar_obstaculo(self, obstaculo):
-        if obstaculo.tipo == TipoObstaculo.ARBUSTO:
+        if isinstance(obstaculo, Arbusto):
             pygame.draw.rect(self.pantalla, s.MARRON, (obstaculo.x + 15, obstaculo.y + 30, 10, 10))
             color_verde = s.VERDE_OSCURO if obstaculo.salud == obstaculo.salud_max else s.VERDE_CLARO
             pygame.draw.circle(self.pantalla, color_verde, (obstaculo.x + 8, obstaculo.y + 8), 12)
@@ -721,7 +721,7 @@ class GameRenderer:
             pygame.draw.circle(self.pantalla, color_verde, (obstaculo.x + 28, obstaculo.y + 28), 9)
             if obstaculo.salud < obstaculo.salud_max:
                 pygame.draw.circle(self.pantalla, s.ROJO, (obstaculo.x + 20, obstaculo.y + 20), 3)
-        elif obstaculo.tipo == TipoObstaculo.ROCA:
+        elif isinstance(obstaculo, Roca):
             pygame.draw.rect(self.pantalla, s.GRIS, obstaculo.rect)
             pygame.draw.rect(self.pantalla, s.GRIS_CLARO, (obstaculo.x + 2, obstaculo.y + 2, obstaculo.ancho - 4, obstaculo.alto - 4))
             pygame.draw.polygon(self.pantalla, (80, 80, 80), 
@@ -731,7 +731,7 @@ class GameRenderer:
                               [(obstaculo.x + 10, obstaculo.y + 30), (obstaculo.x + 20, obstaculo.y + 15),
                                (obstaculo.x + 30, obstaculo.y + 20), (obstaculo.x + 25, obstaculo.y + 32)])
             pygame.draw.line(self.pantalla, (40, 40, 40), (obstaculo.x, obstaculo.y + 35), (obstaculo.x + 40, obstaculo.y + 35), 2)
-        elif obstaculo.tipo == TipoObstaculo.MURO:
+        elif isinstance(obstaculo, Muro):
             pygame.draw.rect(self.pantalla, s.MARRON_LADRILLO, obstaculo.rect)
             for fila in range(4):
                 for col in range(4):
@@ -739,7 +739,7 @@ class GameRenderer:
                     ladrillo_rect = pygame.Rect(obstaculo.x + col * 10, obstaculo.y + fila * 10, 10, 10)
                     pygame.draw.rect(self.pantalla, color_ladrillo, ladrillo_rect)
                     pygame.draw.rect(self.pantalla, (50, 50, 50), ladrillo_rect, 1)
-        elif obstaculo.tipo == TipoObstaculo.CAJA_MADERA:
+        elif isinstance(obstaculo, CajaMadera):
             # Dibujar caja de madera
             pygame.draw.rect(self.pantalla, s.MARRON_CAJA, obstaculo.rect)
             pygame.draw.rect(self.pantalla, s.MARRON_CAJA_OSCURO, obstaculo.rect, 3)
