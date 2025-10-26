@@ -136,22 +136,22 @@ class Bala:
         self.color = color
         self.radio = 4
         self.rect = pygame.Rect(x - self.radio, y - self.radio, self.radio * 2, self.radio * 2)
-        self.tiempo_vida = 0
+        self.tiempo_creacion = pygame.time.get_ticks()
         self.tiempo_max_vida = 3000  # 3 segundos
         
-    def mover(self):
-        self.x += math.cos(self.angulo) * self.velocidad
-        self.y += math.sin(self.angulo) * self.velocidad
+    def mover(self, dt):
+        # dt es el delta time en segundos. Multiplicamos por él para un movimiento consistente.
+        self.x += math.cos(self.angulo) * self.velocidad * dt * 60 # Multiplicamos por 60 para mantener la velocidad original
+        self.y += math.sin(self.angulo) * self.velocidad * dt * 60
         self.rect.x = self.x - self.radio
         self.rect.y = self.y - self.radio
-        self.tiempo_vida += 16  # Aproximadamente 60 FPS
         
     def esta_fuera_pantalla(self):
         return (self.x < -10 or self.x > s.ANCHO_VENTANA + 10 or 
                 self.y < -10 or self.y > s.ALTO_VENTANA + 10)
                 
     def tiempo_agotado(self):
-        return self.tiempo_vida >= self.tiempo_max_vida
+        return pygame.time.get_ticks() - self.tiempo_creacion >= self.tiempo_max_vida
 
 
 class Obstaculo:
@@ -344,11 +344,11 @@ class Juego:
             self.estado = GameState.JUGANDO
             print("Juego reanudado")
     
-    def actualizar(self):
+    def actualizar(self, dt):
         teclas_presionadas = pygame.key.get_pressed()
         
         # Mover tanques con detección de colisiones entre ellos
-        otros_tanques = [self.tanque2] if self.tanque1.vidas > 0 else []
+        otros_tanques = [self.tanque2] if self.tanque2.vidas > 0 else []
         if self.tanque1.vidas > 0:
             debe_disparar1 = self.tanque1.mover(teclas_presionadas, self.obstaculos, otros_tanques)
             if debe_disparar1:
@@ -356,7 +356,7 @@ class Juego:
                 if bala:
                     self.balas.append(bala)
         
-        otros_tanques = [self.tanque1] if self.tanque2.vidas > 0 else []
+        otros_tanques = [self.tanque1] if self.tanque1.vidas > 0 else []
         if self.tanque2.vidas > 0:
             debe_disparar2 = self.tanque2.mover(teclas_presionadas, self.obstaculos, otros_tanques)
             if debe_disparar2:
@@ -366,7 +366,7 @@ class Juego:
         
         # Mover balas
         for bala in self.balas[:]:
-            bala.mover()
+            bala.mover(dt)
             if bala.esta_fuera_pantalla() or bala.tiempo_agotado():
                 self.balas.remove(bala)
         
@@ -507,19 +507,19 @@ class Juego:
     def ejecutar(self):
         ejecutando = True
         while ejecutando:
+            # Delta time para un movimiento independiente de los FPS
+            dt = self.reloj.tick(s.FPS) / 1000.0
+
             # 1. Manejar eventos (común a todos los estados)
             ejecutando = self.manejar_eventos()
 
             # 2. Actualizar estado del juego (solo si se está jugando)
             if self.estado == GameState.JUGANDO:
-                self.actualizar()
+                self.actualizar(dt)
                 self.actualizar_efectos()
 
             # 3. Dibujar en pantalla (siempre, pero el renderizador puede cambiar según el estado)
             self.renderer.dibujar(self)
-
-            # 4. Controlar FPS
-            self.reloj.tick(s.FPS)
         
         # Detener la música al salir
         try:
