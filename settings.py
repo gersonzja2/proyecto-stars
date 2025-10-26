@@ -1,11 +1,11 @@
 # settings.py
 
-# Constantes del juego
+# ---- CONFIGURACIÓN DE LA VENTANA Y JUEGO ----
 ANCHO_VENTANA = 1000
 ALTO_VENTANA = 700
 FPS = 60
 
-# Colores
+# ---- COLORES ----
 NEGRO = (0, 0, 0)
 VERDE = (0, 255, 0)
 ROJO = (255, 0, 0)
@@ -25,7 +25,7 @@ MARRON_LADRILLO = (150, 75, 0)
 MARRON_CAJA = (160, 110, 60)
 MARRON_CAJA_OSCURO = (130, 80, 40)
 
-# Colores para efectos
+# Colores para efectos visuales (explosiones, destellos)
 AMARILLO_FUEGO = (255, 200, 0)
 NARANJA_FUEGO = (255, 100, 0)
 ROJO_FUEGO = (255, 0, 0)
@@ -33,7 +33,7 @@ AZUL_BRILLANTE = (100, 200, 255)
 BLANCO_BRILLANTE = (255, 255, 220)
 
 # Configuración de efectos
-PARTICULAS_EXPLOSION = 8
+PARTICULAS_EXPLOSION = 8  # Número de partículas generadas por explosión.
 PARTICULAS_PROPULSION = 4
 DURACION_EXPLOSION = 30
 DURACION_DESTELLO = 8
@@ -41,13 +41,13 @@ DURACION_PROPULSION = 10
 DURACION_ESTELA = 15
 MAX_EFECTOS = 50
 
-# Configuración del mapa
+# ---- CONFIGURACIÓN DEL MAPA ----
 NUM_ROCAS = 20
 NUM_ARBUSTOS = 25
 NUM_MUROS = 15
 NUM_CAJAS_MADERA = 10
 
-# Archivos de assets
+# ---- RUTAS DE ARCHIVOS DE RECURSOS (ASSETS) ----
 MUSIC_FILE = "megalovia.mp3"
 SOUND_SHOT = "disparo.wav"
 SOUND_EXPLOSION = "explosion.wav"

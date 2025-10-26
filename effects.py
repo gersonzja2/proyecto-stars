@@ -5,6 +5,7 @@ import settings as s
 
 class Efecto:
     """Clase base para todos los efectos visuales."""
+    
     def __init__(self, x, y, max_tiempo):
         self.x = x
         self.y = y
@@ -28,6 +29,7 @@ class Efecto:
         return self.tiempo / self.max_tiempo
 
 class Explosion(Efecto):
+    """Un círculo que se expande rápidamente y se desvanece, simulando una explosión."""
     def __init__(self, x, y):
         super().__init__(x, y, s.DURACION_EXPLOSION)
         self.radio = 0
@@ -37,11 +39,12 @@ class Explosion(Efecto):
     def actualizar(self):
         super().actualizar()
         progreso = self.get_progreso()
-        # Fórmula para que la explosión sea rápida al inicio y lenta al final
+        # Fórmula de "ease-out" para que la expansión sea rápida al inicio y lenta al final.
         self.radio = int((1 - (1 - progreso) ** 2) * self.max_radio)
 
     def dibujar(self, pantalla):
         progreso = self.get_progreso()
+        # La opacidad (alpha) disminuye a medida que el efecto envejece.
         alpha = int(200 * (1 - progreso))
         if alpha > 0:
             surf = pygame.Surface((self.radio * 2, self.radio * 2), pygame.SRCALPHA)
@@ -50,6 +53,7 @@ class Explosion(Efecto):
             pantalla.blit(surf, (int(self.x) - self.radio, int(self.y) - self.radio))
 
 class Onda(Efecto):
+    """Una onda expansiva circular que se desvanece."""
     def __init__(self, x, y):
         super().__init__(x, y, s.DURACION_EXPLOSION)
         self.radio = 5
@@ -69,6 +73,7 @@ class Onda(Efecto):
             pantalla.blit(surf, (int(self.x) - self.radio, int(self.y) - self.radio))
 
 class Destello(Efecto):
+    """Un destello brillante y corto que se encoge rápidamente."""
     def __init__(self, x, y):
         super().__init__(x, y, s.DURACION_DESTELLO)
         self.radio_inicial = 12
@@ -88,6 +93,7 @@ class Destello(Efecto):
             pantalla.blit(surf, (int(self.x) - self.radio, int(self.y) - self.radio))
 
 class Particula(Efecto):
+    """Una pequeña partícula que se mueve con física simple (gravedad y fricción)."""
     def __init__(self, x, y, dx, dy, color):
         super().__init__(x, y, s.DURACION_EXPLOSION)
         self.dx = dx
@@ -111,6 +117,7 @@ class Particula(Efecto):
             pantalla.blit(surf, (int(self.x) - self.radio, int(self.y) - self.radio))
 
 class Humo(Efecto):
+    """Una partícula de humo que se expande y se desvanece lentamente."""
     def __init__(self, x, y, dx, dy):
         super().__init__(x, y, s.DURACION_EXPLOSION)
         self.dx = dx
@@ -136,6 +143,7 @@ class Humo(Efecto):
             pantalla.blit(surf, (int(self.x) - self.radio, int(self.y) - self.radio))
 
 class Rastro(Efecto):
+    """Un rastro visual dejado por los tanques al moverse."""
     def __init__(self, x, y, color):
         super().__init__(x, y, 20) # max_tiempo
         self.radio = 3

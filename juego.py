@@ -18,6 +18,7 @@ class GameState(Enum):
 pygame.init()
 
 class Tanque:
+    """Representa un tanque jugador, con su lógica de movimiento, disparo y estado."""
     def __init__(self, x, y, color, teclas, juego):
         self.x = x
         self.y = y
@@ -40,6 +41,14 @@ class Tanque:
         self.tiempo_entre_rastros = 50  # ms entre efectos de rastro
         
     def mover(self, teclas_presionadas, obstaculos, otros_tanques):
+        """
+        Maneja la lógica de movimiento y rotación del tanque.
+        - Rota el tanque según las teclas de izquierda/derecha.
+        - Avanza en la dirección del ángulo actual.
+        - Realiza detección de colisiones con bordes, obstáculos y otros tanques.
+        - Crea efectos de sonido y rastro al moverse.
+        - Devuelve True si el tanque debe disparar (al avanzar).
+        """
         # Sistema de rotación y movimiento direccional
         nueva_x = self.x
         nueva_y = self.y
@@ -111,12 +120,17 @@ class Tanque:
             self.rect.y = self.y
             
         return disparar  # Devolver si debe disparar
-            
-        
+
     def disparar(self):
+        """
+        Crea un objeto Bala si ha pasado suficiente tiempo desde el último disparo.
+        Devuelve el objeto Bala o None.
+        """
         tiempo_actual = pygame.time.get_ticks()
+        # Controla la cadencia de disparo.
         if tiempo_actual - self.ultimo_disparo >= self.velocidad_disparo:
             # Calcular posición de salida del cañón
+            # La bala se crea un poco más adelante del tanque, en la dirección del cañón.
             cañon_x = self.x + self.ancho // 2 + math.cos(self.angulo) * 25
             cañon_y = self.y + self.alto // 2 + math.sin(self.angulo) * 25
             
@@ -128,6 +142,7 @@ class Tanque:
         return None
         
 class Bala:
+    """Representa un proyectil disparado por un tanque."""
     def __init__(self, x, y, angulo, color):
         self.x = x
         self.y = y
@@ -136,21 +151,23 @@ class Bala:
         self.color = color
         self.radio = 4
         self.rect = pygame.Rect(x - self.radio, y - self.radio, self.radio * 2, self.radio * 2)
-        self.tiempo_creacion = pygame.time.get_ticks()
+        self.tiempo_creacion = pygame.time.get_ticks() # Para controlar su vida útil.
         self.tiempo_max_vida = 3000  # 3 segundos
         
     def mover(self, dt):
-        # dt es el delta time en segundos. Multiplicamos por él para un movimiento consistente.
+        """Mueve la bala en su dirección. `dt` asegura un movimiento fluido e independiente de los FPS."""
         self.x += math.cos(self.angulo) * self.velocidad * dt * 60 # Multiplicamos por 60 para mantener la velocidad original
         self.y += math.sin(self.angulo) * self.velocidad * dt * 60
         self.rect.x = self.x - self.radio
         self.rect.y = self.y - self.radio
         
     def esta_fuera_pantalla(self):
+        """Comprueba si la bala ha salido de los límites de la pantalla."""
         return (self.x < -10 or self.x > s.ANCHO_VENTANA + 10 or 
                 self.y < -10 or self.y > s.ALTO_VENTANA + 10)
                 
     def tiempo_agotado(self):
+        """Comprueba si la bala ha existido por más tiempo del permitido."""
         return pygame.time.get_ticks() - self.tiempo_creacion >= self.tiempo_max_vida
 
 
@@ -167,6 +184,7 @@ class Obstaculo:
         self.destructible = destructible
 
     def recibir_daño(self):
+        """Reduce la salud del obstáculo si es destructible. Devuelve True si se destruye."""
         if self.destructible:
             self.salud -= 1
             return self.salud <= 0
@@ -190,7 +208,9 @@ class CajaMadera(Obstaculo):
 
 
 class Juego:
+    """Clase principal que orquesta todo el juego: el bucle principal, estados, eventos y lógica."""
     def __init__(self):
+        """Inicializa la ventana, los recursos, los objetos del juego y el estado inicial."""
         self.pantalla = pygame.display.set_mode((s.ANCHO_VENTANA, s.ALTO_VENTANA))
         pygame.display.set_caption("Juego de Tanques - Optimizado")
         self.reloj = pygame.time.Clock()
@@ -224,6 +244,12 @@ class Juego:
         self.estado = GameState.JUGANDO
         self.ganador = None
         self.musica_pausada = False
+        
+        # Agrupar tanques para facilitar la iteración
+        self.tanques = [self.tanque1, self.tanque2]
+        # Restaurar el volumen de la sesión anterior si es necesario
+        if 'volumen_actual' in self.__dict__:
+            pygame.mixer.music.set_volume(self.volumen_actual)
         self.volumen_actual = 0.3
         
     def toggle_musica(self):
@@ -255,6 +281,7 @@ class Juego:
             print(f"Volumen: {int(self.volumen_actual * 100)}%")
         
     def crear_obstaculos(self):
+        """Genera y posiciona los obstáculos en el mapa de forma aleatoria."""
         # Limpiar obstáculos existentes
         self.obstaculos = []
         
@@ -293,7 +320,7 @@ class Juego:
         max_intentos = 100  # Límite de intentos para evitar bucle infinito
         
         for intento in range(max_intentos):
-            x = random.randint(50, s.ANCHO_VENTANA - 90)  # Evitar bordes
+            x = random.randint(50, s.ANCHO_VENTANA - 90)  # Evitar bordes y zona de UI
             y = random.randint(130, s.ALTO_VENTANA - 90)  # Evitar zona de interfaz y bordes
             
             # Crear rectángulo temporal para verificar colisiones
@@ -311,6 +338,7 @@ class Juego:
         return x, y
     
     def manejar_eventos(self):
+        """Procesa todas las entradas del usuario (teclado, cerrar ventana)."""
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 return False
@@ -318,7 +346,6 @@ class Juego:
                 if evento.key == pygame.K_ESCAPE:
                     # Salir del juego con ESC
                     return False
-                # Los disparos ahora son automáticos al moverse
                 elif evento.key == pygame.K_r:
                     # Reiniciar juego (funciona en cualquier momento)
                     self.reiniciar_juego()
@@ -335,6 +362,7 @@ class Juego:
                     # Pausar/reanudar el juego
                     self.pausar_juego()
         return True
+
     def pausar_juego(self):
         """Pausa o reanuda el juego."""
         if self.estado == GameState.JUGANDO:
@@ -345,56 +373,68 @@ class Juego:
             print("Juego reanudado")
     
     def actualizar(self, dt):
+        """Actualiza la lógica de todos los objetos del juego en cada frame."""
         teclas_presionadas = pygame.key.get_pressed()
-        
-        # Mover tanques con detección de colisiones entre ellos
-        otros_tanques = [self.tanque2] if self.tanque2.vidas > 0 else []
-        if self.tanque1.vidas > 0:
-            debe_disparar1 = self.tanque1.mover(teclas_presionadas, self.obstaculos, otros_tanques)
-            if debe_disparar1:
-                bala = self.tanque1.disparar()
+
+        # 1. Actualizar tanques (movimiento y disparo)
+        tanques_activos = [t for t in self.tanques if t.vidas > 0]
+        for i, tanque in enumerate(tanques_activos):
+            otros_tanques = tanques_activos[:i] + tanques_activos[i+1:]
+            if tanque.mover(teclas_presionadas, self.obstaculos, otros_tanques):
+                bala = tanque.disparar()
                 if bala:
                     self.balas.append(bala)
-        
-        otros_tanques = [self.tanque1] if self.tanque1.vidas > 0 else []
-        if self.tanque2.vidas > 0:
-            debe_disparar2 = self.tanque2.mover(teclas_presionadas, self.obstaculos, otros_tanques)
-            if debe_disparar2:
-                bala = self.tanque2.disparar()
-                if bala:
-                    self.balas.append(bala)
-        
-        # Mover balas
+
+        # 2. Mover balas
         for bala in self.balas[:]:
             bala.mover(dt)
+            # Eliminar balas que están fuera de la pantalla o que han existido demasiado tiempo
             if bala.esta_fuera_pantalla() or bala.tiempo_agotado():
                 self.balas.remove(bala)
         
         # Verificar colisiones de balas
-        self.verificar_colisiones()
+        self.verificar_colisiones() # 3. Verificar colisiones
         
         # Actualizar efectos de invulnerabilidad
-        self.actualizar_invulnerabilidad()
+        self.actualizar_invulnerabilidad() # 4. Actualizar estado de invulnerabilidad
         
-        # Verificar fin del juego
-        if self.tanque1.vidas <= 0 and self.tanque2.vidas <= 0:
+        # 5. Verificar si la partida ha terminado
+        if all(t.vidas <= 0 for t in self.tanques):
             self.estado = GameState.FIN_PARTIDA
             self.ganador = "Empate"
-        elif self.tanque1.vidas <= 0:
-            self.estado = GameState.FIN_PARTIDA
-            self.ganador = "Tanque Rojo"
         elif self.tanque2.vidas <= 0:
             self.estado = GameState.FIN_PARTIDA
             self.ganador = "Tanque Azul"
+        elif self.tanque1.vidas <= 0:
+            self.estado = GameState.FIN_PARTIDA
+            self.ganador = "Tanque Rojo"
     
     def actualizar_efectos(self):
         """Actualiza todos los efectos visuales y los elimina si han terminado."""
         for efecto in self.efectos[:]:
+            # Cada efecto tiene su propia lógica de actualización.
             efecto.actualizar()
             if efecto.ha_terminado():
                 self.efectos.remove(efecto)
 
+    def _manejar_colision_bala_tanque(self, bala, tanque_impactado, tanque_tirador):
+        """Maneja la lógica de colisión entre una bala y un tanque."""
+        if (tanque_impactado.vidas > 0 and bala.rect.colliderect(tanque_impactado.rect) and
+                # La bala no debe ser del mismo color que el tanque y el tanque no debe ser invulnerable.
+                bala.color != tanque_impactado.color and not tanque_impactado.invulnerable):
+            
+            tanque_impactado.vidas -= 1
+            tanque_tirador.puntuacion += 10
+            tanque_impactado.invulnerable = True
+            tanque_impactado.tiempo_invulnerable = pygame.time.get_ticks()
+            
+            self.crear_efecto_explosion(tanque_impactado.x + 15, tanque_impactado.y + 15)
+            self.balas.remove(bala)
+            return True
+        return False
+
     def verificar_colisiones(self):
+        """Verifica y maneja las colisiones de las balas con los obstáculos y los tanques."""
         for bala in self.balas[:]:
             # Colisión con obstáculos usando rectángulos
             for obstaculo in self.obstaculos[:]:
@@ -407,60 +447,40 @@ class Juego:
                     self.balas.remove(bala)
                     break
             
-            # Colisión con tanques usando rectángulos
+            # Si la bala fue destruida por un obstáculo, no continuar.
             if bala not in self.balas:
                 continue
                 
-            # Verificar colisión con tanque 1
-            if (self.tanque1.vidas > 0 and bala.rect.colliderect(self.tanque1.rect) and 
-                bala.color != self.tanque1.color and not self.tanque1.invulnerable):
-                self.tanque1.vidas -= 1
-                self.tanque2.puntuacion += 10
-                self.tanque1.invulnerable = True
-                self.tanque1.tiempo_invulnerable = pygame.time.get_ticks()
-                self.crear_efecto_explosion(self.tanque1.x + 15, self.tanque1.y + 15)
-                self.balas.remove(bala)
-                    
-            # Verificar colisión con tanque 2
-            elif (self.tanque2.vidas > 0 and bala.rect.colliderect(self.tanque2.rect) and 
-                  bala.color != self.tanque2.color and not self.tanque2.invulnerable):
-                self.tanque2.vidas -= 1
-                self.tanque1.puntuacion += 10
-                self.tanque2.invulnerable = True
-                self.tanque2.tiempo_invulnerable = pygame.time.get_ticks()
-                self.crear_efecto_explosion(self.tanque2.x + 15, self.tanque2.y + 15)
-                self.balas.remove(bala)
+            # Colisión con tanques
+            if self._manejar_colision_bala_tanque(bala, self.tanque1, self.tanque2):
+                continue # La bala fue destruida, pasar a la siguiente
+            if self._manejar_colision_bala_tanque(bala, self.tanque2, self.tanque1):
+                continue
     
     def actualizar_invulnerabilidad(self):
         """Actualiza el estado de invulnerabilidad de los tanques."""
         tiempo_actual = pygame.time.get_ticks()
-        
-        if self.tanque1.invulnerable and tiempo_actual - self.tanque1.tiempo_invulnerable > 2000:
-            self.tanque1.invulnerable = False
-            
-        if self.tanque2.invulnerable and tiempo_actual - self.tanque2.tiempo_invulnerable > 2000:
-            self.tanque2.invulnerable = False
+        for tanque in self.tanques:
+            if tanque.invulnerable and tiempo_actual - tanque.tiempo_invulnerable > 2000:
+                tanque.invulnerable = False
     
     def crear_efecto_explosion(self, x, y):
         """Crea un efecto visual de explosión con partículas y ondas expansivas."""
-        # Verificar límite de efectos
-        if len(self.efectos) >= s.MAX_EFECTOS:
-            # Eliminar los efectos más antiguos si se supera el límite
-            self.efectos = self.efectos[-s.MAX_EFECTOS//2:]
-            
+        # Se calcula un "presupuesto" de efectos para no sobrecargar el motor y causar lag.
+        espacio_disponible = s.MAX_EFECTOS - len(self.efectos)
+        if espacio_disponible <= 0:
+            return
+
         # Efecto principal de explosión
         self.efectos.append(effects.Explosion(x, y))
-        
         # Onda expansiva
         self.efectos.append(effects.Onda(x, y))
-        
-        # Destello central (solo si no hay muchos efectos)
-        if len(self.efectos) < s.MAX_EFECTOS - 10:
-            self.efectos.append(effects.Destello(x, y))
-        
+        # Destello central
+        self.efectos.append(effects.Destello(x, y))
+
         # Partículas de la explosión
         colores_fuego = [s.AMARILLO_FUEGO, s.NARANJA_FUEGO, s.ROJO_FUEGO]
-        num_particulas = min(s.PARTICULAS_EXPLOSION, (s.MAX_EFECTOS - len(self.efectos)) // 2)
+        num_particulas = min(s.PARTICULAS_EXPLOSION, espacio_disponible - 3) # -3 por los 3 efectos principales.
         for _ in range(num_particulas):
             angulo = random.uniform(0, 2 * math.pi)
             velocidad = random.uniform(2, 5)
@@ -468,16 +488,16 @@ class Juego:
             dy = math.sin(angulo) * velocidad
             color = random.choice(colores_fuego)
             self.efectos.append(effects.Particula(x, y, dx, dy, color))
-            
-        # Humo (reducido y solo si hay espacio)
-        if len(self.efectos) < s.MAX_EFECTOS - 5:
-            for _ in range(min(3, (s.MAX_EFECTOS - len(self.efectos)))):
-                angulo = random.uniform(0, 2 * math.pi)
-                velocidad = random.uniform(1, 2)
-                dx = math.cos(angulo) * velocidad
-                dy = math.sin(angulo) * velocidad - 0.3
-                self.efectos.append(effects.Humo(x, y, dx, dy))
-        
+
+        # Humo
+        num_humo = min(3, s.MAX_EFECTOS - len(self.efectos))
+        for _ in range(num_humo):
+            angulo = random.uniform(0, 2 * math.pi)
+            velocidad = random.uniform(1, 2)
+            dx = math.cos(angulo) * velocidad
+            dy = math.sin(angulo) * velocidad - 0.3
+            self.efectos.append(effects.Humo(x, y, dx, dy))
+
         # Reproducir sonido de explosión
         if 'explosion' in self.assets.sounds:
             self.assets.sounds['explosion'].play()
@@ -496,6 +516,7 @@ class Juego:
             'derecha': pygame.K_l
         }, self)
         
+        self.tanques = [self.tanque1, self.tanque2]
         self.balas = []
         self.efectos = []
         self.obstaculos = []
@@ -505,6 +526,7 @@ class Juego:
         # La música continúa reproduciéndose
     
     def ejecutar(self):
+        """El bucle principal del juego. Se ejecuta hasta que el jugador cierra la ventana."""
         ejecutando = True
         while ejecutando:
             # Delta time para un movimiento independiente de los FPS
@@ -533,7 +555,7 @@ class GameRenderer:
     """Clase responsable de todo el dibujado del juego (La Vista)."""
     def __init__(self, pantalla, assets):
         self.pantalla = pantalla
-        # Obtener las fuentes del AssetManager
+        # Obtener las fuentes cargadas por el AssetManager.
         self.fuente_grande = assets.fonts.get('grande')
         self.fuente = assets.fonts.get('normal')
         self.fuente_pequeña = assets.fonts.get('pequena')
@@ -541,6 +563,7 @@ class GameRenderer:
     def dibujar(self, juego):
         """Dibuja todos los elementos del juego."""
         self.pantalla.fill(s.NEGRO)
+        # El orden de dibujado es importante: fondo, obstáculos, tanques, balas, efectos, UI.
         
         for obstaculo in juego.obstaculos:
             self.dibujar_obstaculo(obstaculo)
@@ -562,23 +585,28 @@ class GameRenderer:
         elif juego.estado == GameState.PAUSA:
             self.dibujar_pantalla_pausa()
 
-        
+        # Actualiza la pantalla para mostrar todo lo dibujado.
         pygame.display.flip()
 
     def dibujar_tanque(self, tanque):
+        """Dibuja un tanque, su cañón y sus indicadores de vida."""
         tiempo_actual = pygame.time.get_ticks()
+        # Efecto de parpadeo cuando el tanque es invulnerable.
         if tanque.invulnerable and (tiempo_actual // 100) % 2:
             return
 
+        # Cuerpo del tanque
         pygame.draw.rect(self.pantalla, tanque.color, (tanque.x, tanque.y, tanque.ancho, tanque.alto))
         pygame.draw.rect(self.pantalla, s.BLANCO, (tanque.x + 2, tanque.y + 2, tanque.ancho - 4, tanque.alto - 4), 2)
         
+        # Cañón del tanque, apuntando en la dirección del ángulo.
         cañon_x = tanque.x + tanque.ancho // 2 + math.cos(tanque.angulo) * 20
         cañon_y = tanque.y + tanque.alto // 2 + math.sin(tanque.angulo) * 20
         pygame.draw.line(self.pantalla, tanque.color, 
                         (tanque.x + tanque.ancho // 2, tanque.y + tanque.alto // 2),
                         (cañon_x, cañon_y), 5)
         
+        # Indicadores de vida sobre el tanque.
         for i in range(tanque.vidas):
             color_vida = s.ROJO
             pygame.draw.circle(self.pantalla, color_vida, 
@@ -587,6 +615,7 @@ class GameRenderer:
                              (int(tanque.x + 5 + i * 8), int(tanque.y - 10)), 4, 1)
 
     def dibujar_bala(self, bala):
+        """Dibuja una bala con un efecto de estela para dar sensación de velocidad."""
         num_estelas = 4
         for i in range(num_estelas):
             distancia = i * 3
@@ -599,10 +628,12 @@ class GameRenderer:
             pygame.draw.circle(surf, (*bala.color[:3], alpha), (radio_estela, radio_estela), radio_estela)
             self.pantalla.blit(surf, (pos_x - radio_estela, pos_y - radio_estela))
 
+        # Dibuja el núcleo brillante de la bala.
         pygame.draw.circle(self.pantalla, bala.color, (int(bala.x), int(bala.y)), bala.radio)
         pygame.draw.circle(self.pantalla, s.BLANCO_BRILLANTE, (int(bala.x), int(bala.y)), bala.radio - 1)
 
     def dibujar_obstaculo(self, obstaculo):
+        """Dibuja un obstáculo según su tipo (Roca, Arbusto, etc.)."""
         if isinstance(obstaculo, Arbusto):
             pygame.draw.rect(self.pantalla, s.MARRON, (obstaculo.x + 15, obstaculo.y + 30, 10, 10))
             color_verde = s.VERDE_OSCURO if obstaculo.salud == obstaculo.salud_max else s.VERDE_CLARO
@@ -645,14 +676,18 @@ class GameRenderer:
             efecto.dibujar(self.pantalla)
 
     def dibujar_ui(self, juego):
+        """Dibuja la interfaz de usuario en la parte superior de la pantalla."""
+        # Fondo de la UI
         pygame.draw.rect(self.pantalla, (50, 50, 50), (0, 0, s.ANCHO_VENTANA, 80))
         pygame.draw.line(self.pantalla, s.BLANCO, (0, 80), (s.ANCHO_VENTANA, 80), 2)
         
+        # Puntuaciones de los jugadores
         texto_puntuacion1 = self.fuente.render(f"Azul: {juego.tanque1.puntuacion}", True, s.AZUL) if self.fuente else None
         texto_puntuacion2 = self.fuente.render(f"Rojo: {juego.tanque2.puntuacion}", True, s.ROJO) if self.fuente else None
         self.pantalla.blit(texto_puntuacion1, (10, 10))
         self.pantalla.blit(texto_puntuacion2, (10, 40))
         
+        # Instrucciones de control en el centro
         instrucciones = ["Azul: W/A/D | Rojo: I/J/L", "P=Pausa | R=Reiniciar | M=Música | +/-=Volumen | ESC=Salir"]
         if self.fuente_pequeña:
             for i, instruccion in enumerate(instrucciones):
@@ -661,6 +696,7 @@ class GameRenderer:
                 y_pos = 15 + i * 25
                 self.pantalla.blit(texto, (x_pos, y_pos))
         
+        # Estado de la música y volumen a la derecha
         estado_musica = "Música: ON" if not juego.musica_pausada else "Música: OFF"
         color_musica = s.VERDE if not juego.musica_pausada else s.ROJO
         if self.fuente_pequeña:
@@ -671,6 +707,7 @@ class GameRenderer:
             self.pantalla.blit(texto_volumen, (s.ANCHO_VENTANA - 120, 30))
 
     def dibujar_pantalla_fin(self, juego):
+        """Dibuja la pantalla de fin de partida sobre el juego."""
         overlay = pygame.Surface((s.ANCHO_VENTANA, s.ALTO_VENTANA), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 128))
         self.pantalla.blit(overlay, (0, 0))
@@ -701,7 +738,7 @@ class GameRenderer:
             self.pantalla.blit(texto_pausa, rect_pausa)
 
 def main():
-    """Función principal que inicia el juego."""
+    """Función principal (entry point) que crea una instancia del juego y la ejecuta."""
     print("¡Bienvenido al Juego de Tanques!")
     print("Controles:")
     print("Tanque Azul: W=Avanzar/Disparar, A/D=Girar")

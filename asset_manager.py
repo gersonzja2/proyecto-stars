@@ -3,10 +3,12 @@ import settings as s
 
 class AssetManager:
     """Clase para cargar y gestionar todos los recursos del juego (sonidos, fuentes, etc.)."""
+    
     def __init__(self):
+        """Inicializa el gestor de assets, preparando diccionarios para sonidos y fuentes."""
         self.sounds = {}
         self.fonts = {}
-        self.music_file = s.MUSIC_FILE
+        self.music_file = s.MUSIC_FILE  # Ruta al archivo de música de fondo.
         self.load_all()
 
     def load_all(self):
@@ -19,7 +21,7 @@ class AssetManager:
         """Inicializa el mixer, carga los efectos de sonido y la música."""
         try:
             # Inicializar el mixer de pygame
-            pygame.mixer.init(frequency=22050, size=-16, channels=2, buffer=512)
+            pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
             
             # Cargar efectos de sonido
             self.sounds = {
@@ -32,21 +34,23 @@ class AssetManager:
             for sound in self.sounds.values():
                 sound.set_volume(0.4)
             
-            # Cargar y reproducir la música de fondo
+            # Cargar y reproducir la música de fondo en un bucle infinito (-1).
             pygame.mixer.music.load(self.music_file)
             pygame.mixer.music.set_volume(0.3)
             pygame.mixer.music.play(-1)
             
             print("Música y efectos de sonido cargados correctamente.")
         except (pygame.error, FileNotFoundError) as e:
+            # Si hay un error (ej. no se encuentran los archivos), se informa en consola.
             print(f"Error al cargar audio: {e}. El juego continuará sin sonido.")
-            # Asegurarse de que el mixer no cause problemas si falló
+            # Se desactiva el mixer para evitar errores posteriores.
             pygame.mixer.quit()
             self.sounds = {}
 
     def _load_fonts(self):
         """Carga todas las fuentes utilizadas en el juego."""
         try:
+            # Carga fuentes de diferentes tamaños para la interfaz de usuario.
             self.fonts = {
                 'grande': pygame.font.Font(None, 48),
                 'normal': pygame.font.Font(None, 36),
@@ -54,8 +58,8 @@ class AssetManager:
             }
             print("Fuentes cargadas correctamente.")
         except pygame.error as e:
+            # Si las fuentes personalizadas fallan, Pygame usará su fuente por defecto.
             print(f"No se pudieron cargar las fuentes: {e}. Usando fuentes por defecto.")
-            # En caso de error, Pygame suele tener una fuente por defecto, pero es bueno saberlo.
             self.fonts = {
                 'grande': pygame.font.Font(None, 48),
                 'normal': pygame.font.Font(None, 36),
