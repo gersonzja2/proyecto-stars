@@ -3,46 +3,10 @@ import math
 import random
 import time
 from enum import Enum, auto
+import settings as s
 
-# Inicializar pygame
+# Inicializar pygamewa
 pygame.init()
-
-# Constantes del juego
-ANCHO_VENTANA = 1000
-ALTO_VENTANA = 700
-FPS = 60
-
-# Colores
-NEGRO = (0, 0, 0)
-VERDE = (0, 255, 0)
-ROJO = (255, 0, 0)
-AZUL = (0, 0, 255)
-AMARILLO = (255, 255, 0)
-GRIS = (128, 128, 128)
-MARRON = (139, 69, 19)
-VERDE_OSCURO = (0, 100, 0)
-BLANCO = (255, 255, 255)
-NARANJA = (255, 165, 0)
-MORADO = (128, 0, 128)
-VERDE_CLARO = (144, 238, 144)
-GRIS_CLARO = (200, 200, 200)
-MARRON_LADRILLO = (150, 75, 0)
-
-# Colores para efectos
-AMARILLO_FUEGO = (255, 200, 0)
-NARANJA_FUEGO = (255, 100, 0)
-ROJO_FUEGO = (255, 0, 0)
-AZUL_BRILLANTE = (100, 200, 255)
-BLANCO_BRILLANTE = (255, 255, 220)
-
-# Configuración de efectos
-PARTICULAS_EXPLOSION = 8  # Reducido de 20
-PARTICULAS_PROPULSION = 4  # Reducido de 8
-DURACION_EXPLOSION = 30  # Reducido de 45
-DURACION_DESTELLO = 8  # Reducido de 10
-DURACION_PROPULSION = 10  # Reducido de 15
-DURACION_ESTELA = 15  # Reducido de 20
-MAX_EFECTOS = 50  # Límite máximo de efectos simultáneos
 
 class TipoObstaculo(Enum):
     ARBUSTO = auto()
@@ -136,8 +100,8 @@ class Tanque:
                 break
                     
         # Verificar límites de la pantalla (más estricto)
-        if (nueva_x < 0 or nueva_x >= ANCHO_VENTANA - self.ancho or 
-            nueva_y < 0 or nueva_y >= ALTO_VENTANA - self.alto):
+        if (nueva_x < 0 or nueva_x >= s.ANCHO_VENTANA - self.ancho or 
+            nueva_y < 0 or nueva_y >= s.ALTO_VENTANA - self.alto):
             colision = True
             
         # Verificar que no entre en la zona de la interfaz superior (primeros 80 píxeles)
@@ -168,31 +132,6 @@ class Tanque:
             return Bala(cañon_x, cañon_y, self.angulo, self.color)
         return None
         
-    def dibujar(self, pantalla):
-        # Efecto de invulnerabilidad (parpadeo)
-        tiempo_actual = pygame.time.get_ticks()
-        if self.invulnerable and (tiempo_actual // 100) % 2:
-            return  # Parpadeo durante invulnerabilidad
-            
-        # Dibujar cuerpo del tanque con gradiente
-        pygame.draw.rect(pantalla, self.color, (self.x, self.y, self.ancho, self.alto))
-        pygame.draw.rect(pantalla, BLANCO, (self.x + 2, self.y + 2, self.ancho - 4, self.alto - 4), 2)
-        
-        # Dibujar cañón
-        cañon_x = self.x + self.ancho // 2 + math.cos(self.angulo) * 20
-        cañon_y = self.y + self.alto // 2 + math.sin(self.angulo) * 20
-        pygame.draw.line(pantalla, self.color, 
-                        (self.x + self.ancho // 2, self.y + self.alto // 2),
-                        (cañon_x, cañon_y), 5)
-        
-        # Dibujar vidas con mejor representación
-        for i in range(self.vidas):
-            color_vida = ROJO if i < self.vidas else GRIS
-            pygame.draw.circle(pantalla, color_vida, 
-                             (int(self.x + 5 + i * 8), int(self.y - 10)), 4)
-            pygame.draw.circle(pantalla, BLANCO, 
-                             (int(self.x + 5 + i * 8), int(self.y - 10)), 4, 1)
-
 class Bala:
     def __init__(self, x, y, angulo, color):
         self.x = x
@@ -213,30 +152,11 @@ class Bala:
         self.tiempo_vida += 16  # Aproximadamente 60 FPS
         
     def esta_fuera_pantalla(self):
-        return (self.x < -10 or self.x > ANCHO_VENTANA + 10 or 
-                self.y < -10 or self.y > ALTO_VENTANA + 10)
+        return (self.x < -10 or self.x > s.ANCHO_VENTANA + 10 or 
+                self.y < -10 or self.y > s.ALTO_VENTANA + 10)
                 
     def tiempo_agotado(self):
         return self.tiempo_vida >= self.tiempo_max_vida
-        
-    def dibujar(self, pantalla):
-        # Dibujar estela simplificada
-        num_estelas = 4  # Reducido de 6
-        for i in range(num_estelas):
-            distancia = i * 3
-            alpha = int(150 * (1 - i/num_estelas))
-            pos_x = int(self.x - math.cos(self.angulo) * distancia)
-            pos_y = int(self.y - math.sin(self.angulo) * distancia)
-            radio_estela = max(1, self.radio - i)
-            
-            # Dibujar directamente sin superficie adicional
-            color_estela = (*self.color[:3], alpha)
-            pygame.draw.circle(pantalla, color_estela,
-                             (pos_x, pos_y), radio_estela)
-        
-        # Dibujar bala con brillo
-        pygame.draw.circle(pantalla, self.color, (int(self.x), int(self.y)), self.radio)
-        pygame.draw.circle(pantalla, BLANCO_BRILLANTE, (int(self.x), int(self.y)), self.radio - 1)
 
 class Obstaculo:
     def __init__(self, x, y, tipo):
@@ -264,54 +184,11 @@ class Obstaculo:
             self.salud -= 1
             return self.salud <= 0
         return False
-        
-    def dibujar(self, pantalla):
-        if self.tipo == TipoObstaculo.ARBUSTO:
-            # Base del arbusto
-            pygame.draw.rect(pantalla, MARRON, (self.x + 15, self.y + 30, 10, 10))
-            
-            # Hojas del arbusto con gradiente
-            color_verde = VERDE_OSCURO if self.salud == self.salud_max else VERDE_CLARO
-            pygame.draw.circle(pantalla, color_verde, (self.x + 8, self.y + 8), 12)
-            pygame.draw.circle(pantalla, color_verde, (self.x + 32, self.y + 12), 14)
-            pygame.draw.circle(pantalla, color_verde, (self.x + 20, self.y + 25), 10)
-            pygame.draw.circle(pantalla, color_verde, (self.x + 12, self.y + 20), 8)
-            pygame.draw.circle(pantalla, color_verde, (self.x + 28, self.y + 28), 9)
-            
-            # Efecto de daño
-            if self.salud < self.salud_max:
-                pygame.draw.circle(pantalla, ROJO, (self.x + 20, self.y + 20), 3)
-                
-        elif self.tipo == TipoObstaculo.ROCA:
-            # Base de la roca
-            pygame.draw.rect(pantalla, GRIS, self.rect)
-            pygame.draw.rect(pantalla, GRIS_CLARO, (self.x + 2, self.y + 2, self.ancho - 4, self.alto - 4))
-            
-            # Detalles de la roca
-            pygame.draw.polygon(pantalla, (80, 80, 80), 
-                              [(self.x + 5, self.y + 35), (self.x + 15, self.y + 5),
-                               (self.x + 35, self.y + 10), (self.x + 30, self.y + 35)])
-            pygame.draw.polygon(pantalla, (60, 60, 60), 
-                              [(self.x + 10, self.y + 30), (self.x + 20, self.y + 15),
-                               (self.x + 30, self.y + 20), (self.x + 25, self.y + 32)])
-            
-            # Sombras
-            pygame.draw.line(pantalla, (40, 40, 40), (self.x, self.y + 35), (self.x + 40, self.y + 35), 2)
-        
-        elif self.tipo == TipoObstaculo.MURO:
-            # Dibujar muro de ladrillos
-            pygame.draw.rect(pantalla, MARRON_LADRILLO, self.rect)
-            for fila in range(4):
-                for col in range(4):
-                    color_ladrillo = (139, 69, 19) if (fila + col) % 2 == 0 else (160, 82, 45)
-                    ladrillo_rect = pygame.Rect(self.x + col * 10, self.y + fila * 10, 10, 10)
-                    pygame.draw.rect(pantalla, color_ladrillo, ladrillo_rect)
-                    pygame.draw.rect(pantalla, (50, 50, 50), ladrillo_rect, 1) # Juntas
 
 
 class Juego:
     def __init__(self):
-        self.pantalla = pygame.display.set_mode((ANCHO_VENTANA, ALTO_VENTANA))
+        self.pantalla = pygame.display.set_mode((s.ANCHO_VENTANA, s.ALTO_VENTANA))
         pygame.display.set_caption("Juego de Tanques - Optimizado")
         self.reloj = pygame.time.Clock()
         
@@ -319,13 +196,13 @@ class Juego:
         self.inicializar_musica()
         
         # Crear tanques
-        self.tanque1 = Tanque(100, 100, AZUL, {
+        self.tanque1 = Tanque(100, 100, s.AZUL, {
             'avanzar': pygame.K_w,
             'izquierda': pygame.K_a,
             'derecha': pygame.K_d
         }, self)
         
-        self.tanque2 = Tanque(800, 500, ROJO, {
+        self.tanque2 = Tanque(800, 500, s.ROJO, {
             'avanzar': pygame.K_i,
             'izquierda': pygame.K_j,
             'derecha': pygame.K_l
@@ -339,11 +216,6 @@ class Juego:
         # Crear obstáculos
         self.crear_obstaculos()
         
-        # Fuentes para texto
-        self.fuente_grande = pygame.font.Font(None, 48)
-        self.fuente = pygame.font.Font(None, 36)
-        self.fuente_pequeña = pygame.font.Font(None, 24)
-        
         # Estado del juego
         self.juego_terminado = False
         self.ganador = None
@@ -351,22 +223,25 @@ class Juego:
         self.volumen_actual = 0.3
         
     def inicializar_musica(self):
+        # La inicialización de la vista (Renderer) se hace después de la lógica
+        self.renderer = GameRenderer(self.pantalla)
+
         """Inicializa y reproduce la música de fondo y efectos de sonido."""
         try:
             # Inicializar el mixer de pygame
             pygame.mixer.init(frequency=22050, size=-16, channels=2, buffer=512)
             
             # Cargar y reproducir la música de fondo
-            pygame.mixer.music.load("megalovia.mp3")
+            pygame.mixer.music.load(s.MUSIC_FILE)
             pygame.mixer.music.set_volume(0.3)  # Volumen al 30%
             pygame.mixer.music.play(-1)  # -1 para reproducir en loop infinito
             
             # Cargar efectos de sonido
             self.sonidos = {
-                'disparo': pygame.mixer.Sound("disparo.wav"),
-                'explosion': pygame.mixer.Sound("explosion.wav"),
-                'motor': pygame.mixer.Sound("motor.wav"),
-                'golpe': pygame.mixer.Sound("golpe.wav")
+                'disparo': pygame.mixer.Sound(s.SOUND_SHOT),
+                'explosion': pygame.mixer.Sound(s.SOUND_EXPLOSION),
+                'motor': pygame.mixer.Sound(s.SOUND_ENGINE),
+                'golpe': pygame.mixer.Sound(s.SOUND_HIT)
             }
             
             # Ajustar volumen de los efectos
@@ -442,8 +317,8 @@ class Juego:
         margen_tanque = 60  # Margen adicional alrededor de los tanques
         
         for intento in range(max_intentos):
-            x = random.randint(50, ANCHO_VENTANA - 90)  # Evitar bordes
-            y = random.randint(130, ALTO_VENTANA - 90)  # Evitar zona de interfaz y bordes
+            x = random.randint(50, s.ANCHO_VENTANA - 90)  # Evitar bordes
+            y = random.randint(130, s.ALTO_VENTANA - 90)  # Evitar zona de interfaz y bordes
             
             # Crear rectángulo temporal para verificar colisiones
             rect_obstaculo = pygame.Rect(x, y, 40, 40)
@@ -470,8 +345,8 @@ class Juego:
         
         # Si no se encuentra una posición segura después de muchos intentos,
         # devolver una posición aleatoria (caso extremo)
-        x = random.randint(50, ANCHO_VENTANA - 90)
-        y = random.randint(130, ALTO_VENTANA - 90)
+        x = random.randint(50, s.ANCHO_VENTANA - 90)
+        y = random.randint(130, s.ALTO_VENTANA - 90)
         return x, y
     
     def separar_obstaculos(self):
@@ -494,8 +369,8 @@ class Juego:
                     break
                 
                 # Si hay superposición, generar nueva posición
-                x = random.randint(50, ANCHO_VENTANA - 90)
-                y = random.randint(130, ALTO_VENTANA - 90)
+                x = random.randint(50, s.ANCHO_VENTANA - 90)
+                y = random.randint(130, s.ALTO_VENTANA - 90)
                 obstaculo_actual.x = x
                 obstaculo_actual.y = y
                 obstaculo_actual.rect.x = x
@@ -620,19 +495,19 @@ class Juego:
     def crear_efecto_explosion(self, x, y):
         """Crea un efecto visual de explosión con partículas y ondas expansivas."""
         # Verificar límite de efectos
-        if len(self.efectos) >= MAX_EFECTOS:
+        if len(self.efectos) >= s.MAX_EFECTOS:
             # Eliminar los efectos más antiguos si se supera el límite
-            self.efectos = self.efectos[-MAX_EFECTOS//2:]
+            self.efectos = self.efectos[-s.MAX_EFECTOS//2:]
             
         # Efecto principal de explosión
         self.efectos.append({
             'tipo': 'explosion',
             'x': x, 'y': y,
             'tiempo': 0, 
-            'max_tiempo': DURACION_EXPLOSION,
+            'max_tiempo': s.DURACION_EXPLOSION,
             'radio': 0, 
             'max_radio': 25,
-            'color': AMARILLO_FUEGO
+            'color': s.AMARILLO_FUEGO
         })
         
         # Onda expansiva
@@ -640,26 +515,26 @@ class Juego:
             'tipo': 'onda',
             'x': x, 'y': y,
             'tiempo': 0,
-            'max_tiempo': DURACION_EXPLOSION,
+            'max_tiempo': s.DURACION_EXPLOSION,
             'radio': 5,
             'max_radio': 40,
-            'color': BLANCO_BRILLANTE
+            'color': s.BLANCO_BRILLANTE
         })
         
         # Destello central (solo si no hay muchos efectos)
-        if len(self.efectos) < MAX_EFECTOS - 10:
+        if len(self.efectos) < s.MAX_EFECTOS - 10:
             self.efectos.append({
                 'tipo': 'destello',
                 'x': x, 'y': y,
                 'tiempo': 0,
-                'max_tiempo': DURACION_DESTELLO,
+                'max_tiempo': s.DURACION_DESTELLO,
                 'radio': 12,
-                'color': BLANCO_BRILLANTE
+                'color': s.BLANCO_BRILLANTE
             })
         
         # Partículas de la explosión
-        colores_fuego = [AMARILLO_FUEGO, NARANJA_FUEGO, ROJO_FUEGO]
-        num_particulas = min(PARTICULAS_EXPLOSION, (MAX_EFECTOS - len(self.efectos)) // 2)
+        colores_fuego = [s.AMARILLO_FUEGO, s.NARANJA_FUEGO, s.ROJO_FUEGO]
+        num_particulas = min(s.PARTICULAS_EXPLOSION, (s.MAX_EFECTOS - len(self.efectos)) // 2)
         for _ in range(num_particulas):
             angulo = random.uniform(0, 2 * math.pi)
             velocidad = random.uniform(2, 5)
@@ -669,15 +544,15 @@ class Juego:
                 'dx': math.cos(angulo) * velocidad,
                 'dy': math.sin(angulo) * velocidad,
                 'tiempo': 0,
-                'max_tiempo': DURACION_EXPLOSION,
+                'max_tiempo': s.DURACION_EXPLOSION,
                 'radio': random.randint(2, 4),
                 'color': random.choice(colores_fuego),
                 'velocidad_rotacion': random.uniform(-0.1, 0.1)
             })
             
         # Humo (reducido y solo si hay espacio)
-        if len(self.efectos) < MAX_EFECTOS - 5:
-            for _ in range(min(3, (MAX_EFECTOS - len(self.efectos)))):
+        if len(self.efectos) < s.MAX_EFECTOS - 5:
+            for _ in range(min(3, (s.MAX_EFECTOS - len(self.efectos)))):
                 angulo = random.uniform(0, 2 * math.pi)
                 velocidad = random.uniform(1, 2)
                 self.efectos.append({
@@ -686,9 +561,9 @@ class Juego:
                     'dx': math.cos(angulo) * velocidad,
                     'dy': math.sin(angulo) * velocidad - 0.3,
                     'tiempo': 0,
-                    'max_tiempo': DURACION_EXPLOSION,
+                    'max_tiempo': s.DURACION_EXPLOSION,
                     'radio': random.randint(3, 6),
-                    'color': GRIS,
+                    'color': s.GRIS,
                     'opacidad': random.randint(100, 180)
                 })
         
@@ -696,112 +571,15 @@ class Juego:
         if hasattr(self, 'sonidos') and 'explosion' in self.sonidos:
             self.sonidos['explosion'].play()
     
-    def actualizar_efectos(self):
-        """Actualiza los efectos visuales."""
-        for efecto in self.efectos[:]:
-            efecto['tiempo'] += 1
-            progreso = efecto['tiempo'] / efecto['max_tiempo']
-            
-            if efecto['tipo'] == 'explosion':
-                efecto['radio'] = int((1 - (1 - progreso) ** 2) * efecto['max_radio'])
-            
-            elif efecto['tipo'] == 'onda':
-                efecto['radio'] = int(progreso * efecto['max_radio'])
-            
-            elif efecto['tipo'] == 'destello':
-                efecto['radio'] = int(efecto['radio'] * (1 - progreso))
-            
-            elif efecto['tipo'] == 'particula':
-                # Actualizar posición
-                efecto['x'] += efecto['dx']
-                efecto['y'] += efecto['dy']
-                # Simular gravedad y fricción
-                efecto['dy'] += 0.15
-                efecto['dx'] *= 0.95
-                efecto['dy'] *= 0.95
-                # Rotación de partícula
-                if 'velocidad_rotacion' in efecto:
-                    efecto['angulo'] = efecto.get('angulo', 0) + efecto['velocidad_rotacion']
-            
-            elif efecto['tipo'] == 'humo':
-                # Actualizar posición
-                efecto['x'] += efecto['dx']
-                efecto['y'] += efecto['dy']
-                # El humo se expande y sube
-                efecto['radio'] = int(efecto['radio'] * (1 + progreso * 0.5))
-                efecto['dx'] *= 0.98
-                efecto['dy'] *= 0.98
-                efecto['opacidad'] = int(efecto['opacidad'] * (1 - progreso))
-            
-            elif efecto['tipo'] == 'rastro':
-                efecto['opacidad'] = int(255 * (1 - progreso))
-            
-            elif efecto['tipo'] == 'propulsion':
-                efecto['radio'] *= 0.9
-                efecto['opacidad'] = int(128 * (1 - progreso))
-            
-            if efecto['tiempo'] >= efecto['max_tiempo']:
-                self.efectos.remove(efecto)
-    
-    def dibujar_efectos(self):
-        """Dibuja los efectos visuales."""
-        for efecto in self.efectos:
-            if efecto['tipo'] == 'explosion':
-                alpha = int(200 * (1 - efecto['tiempo'] / efecto['max_tiempo']))
-                # Dibujar directamente en la pantalla
-                pygame.draw.circle(self.pantalla, (*efecto['color'], alpha), 
-                                (int(efecto['x']), int(efecto['y'])), 
-                                efecto['radio'])
-                pygame.draw.circle(self.pantalla, (*BLANCO_BRILLANTE, alpha // 2), 
-                                (int(efecto['x']), int(efecto['y'])), 
-                                max(1, efecto['radio'] - 2))
-            
-            elif efecto['tipo'] == 'onda':
-                alpha = int(100 * (1 - efecto['tiempo'] / efecto['max_tiempo']))
-                pygame.draw.circle(self.pantalla, (*efecto['color'], alpha), 
-                                (int(efecto['x']), int(efecto['y'])), 
-                                efecto['radio'], 2)
-            
-            elif efecto['tipo'] == 'destello':
-                alpha = int(200 * (1 - efecto['tiempo'] / efecto['max_tiempo']))
-                pygame.draw.circle(self.pantalla, (*efecto['color'], alpha), 
-                                (int(efecto['x']), int(efecto['y'])), 
-                                efecto['radio'])
-            
-            elif efecto['tipo'] == 'particula':
-                alpha = int(200 * (1 - efecto['tiempo'] / efecto['max_tiempo']))
-                color = (*efecto['color'], alpha)
-                pygame.draw.circle(self.pantalla, color,
-                                (int(efecto['x']), int(efecto['y'])),
-                                efecto['radio'])
-            
-            elif efecto['tipo'] == 'humo':
-                color = (*efecto['color'], efecto['opacidad'])
-                pygame.draw.circle(self.pantalla, color,
-                                (int(efecto['x']), int(efecto['y'])),
-                                efecto['radio'])
-            
-            elif efecto['tipo'] == 'rastro':
-                color = (*efecto['color'], efecto['opacidad'])
-                pygame.draw.circle(self.pantalla, color,
-                                (int(efecto['x']), int(efecto['y'])),
-                                efecto['radio'])
-            
-            elif efecto['tipo'] == 'propulsion':
-                color = (*efecto['color'], efecto['opacidad'])
-                pygame.draw.circle(self.pantalla, color,
-                                (int(efecto['x']), int(efecto['y'])),
-                                max(1, int(efecto['radio'])))
-    
     def reiniciar_juego(self):
         """Reinicia el juego a su estado inicial."""
-        self.tanque1 = Tanque(100, 100, AZUL, {
+        self.tanque1 = Tanque(100, 100, s.AZUL, {
             'avanzar': pygame.K_w,
             'izquierda': pygame.K_a,
             'derecha': pygame.K_d
         }, self)
         
-        self.tanque2 = Tanque(800, 500, ROJO, {
+        self.tanque2 = Tanque(800, 500, s.ROJO, {
             'avanzar': pygame.K_i,
             'izquierda': pygame.K_j,
             'derecha': pygame.K_l
@@ -815,99 +593,14 @@ class Juego:
         self.ganador = None
         # La música continúa reproduciéndose
     
-    def dibujar(self):
-        self.pantalla.fill(NEGRO)
-        
-        # Dibujar obstáculos
-        for obstaculo in self.obstaculos:
-            obstaculo.dibujar(self.pantalla)
-        
-        # Dibujar tanques
-        if self.tanque1.vidas > 0:
-            self.tanque1.dibujar(self.pantalla)
-        if self.tanque2.vidas > 0:
-            self.tanque2.dibujar(self.pantalla)
-        
-        # Dibujar balas
-        for bala in self.balas:
-            bala.dibujar(self.pantalla)
-        
-        # Dibujar efectos
-        self.dibujar_efectos()
-        
-        # Dibujar información del juego
-        self.dibujar_ui()
-        
-        # Dibujar pantalla de fin de juego
-        if self.juego_terminado:
-            self.dibujar_pantalla_fin()
-        
-        pygame.display.flip()
-    
-    def dibujar_ui(self):
-        """Dibuja la interfaz de usuario."""
-        # Panel de información
-        pygame.draw.rect(self.pantalla, (50, 50, 50), (0, 0, ANCHO_VENTANA, 80))
-        pygame.draw.line(self.pantalla, BLANCO, (0, 80), (ANCHO_VENTANA, 80), 2)
-        
-        # Puntuaciones más compactas
-        texto_puntuacion1 = self.fuente.render(f"Azul: {self.tanque1.puntuacion}", True, AZUL)
-        texto_puntuacion2 = self.fuente.render(f"Rojo: {self.tanque2.puntuacion}", True, ROJO)
-        
-        self.pantalla.blit(texto_puntuacion1, (10, 10))
-        self.pantalla.blit(texto_puntuacion2, (10, 40))
-        
-        # Instrucciones en la parte superior
-        instrucciones = [
-            "Azul: W/A/D | Rojo: I/J/L",
-            "R=Reiniciar | M=Música | +/-=Volumen | ESC=Salir"
-        ]
-        for i, instruccion in enumerate(instrucciones):
-            texto = self.fuente_pequeña.render(instruccion, True, AMARILLO)
-            x_pos = (ANCHO_VENTANA - texto.get_width()) // 2
-            y_pos = 15 + i * 25
-            self.pantalla.blit(texto, (x_pos, y_pos))
-        
-        # Mostrar estado de la música y volumen en la esquina superior derecha
-        estado_musica = "Música: ON" if not self.musica_pausada else "Música: OFF"
-        color_musica = VERDE if not self.musica_pausada else ROJO
-        texto_musica = self.fuente_pequeña.render(estado_musica, True, color_musica)
-        self.pantalla.blit(texto_musica, (ANCHO_VENTANA - 120, 10))
-        
-        # Mostrar volumen
-        texto_volumen = self.fuente_pequeña.render(f"Vol: {int(self.volumen_actual * 100)}%", True, BLANCO)
-        self.pantalla.blit(texto_volumen, (ANCHO_VENTANA - 120, 30))
-    
-    def dibujar_pantalla_fin(self):
-        """Dibuja la pantalla de fin de juego."""
-        # Fondo semi-transparente
-        overlay = pygame.Surface((ANCHO_VENTANA, ALTO_VENTANA), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 128))
-        self.pantalla.blit(overlay, (0, 0))
-        
-        # Texto de fin de juego
-        if self.ganador == "Empate":
-            texto_fin = self.fuente_grande.render("¡EMPATE!", True, AMARILLO)
-        else:
-            texto_fin = self.fuente_grande.render(f"¡{self.ganador} GANA!", True, AMARILLO)
-        
-        texto_reiniciar = self.fuente.render("Presiona R para reiniciar", True, BLANCO)
-        
-        # Centrar texto
-        rect_fin = texto_fin.get_rect(center=(ANCHO_VENTANA//2, ALTO_VENTANA//2 - 50))
-        rect_reiniciar = texto_reiniciar.get_rect(center=(ANCHO_VENTANA//2, ALTO_VENTANA//2 + 20))
-        
-        self.pantalla.blit(texto_fin, rect_fin)
-        self.pantalla.blit(texto_reiniciar, rect_reiniciar)
-    
     def ejecutar(self):
         ejecutando = True
         while ejecutando:
             ejecutando = self.manejar_eventos()
             self.actualizar()
-            self.actualizar_efectos()
-            self.dibujar()
-            self.reloj.tick(FPS)
+            self.renderer.actualizar_efectos(self.efectos)
+            self.renderer.dibujar(self)
+            self.reloj.tick(s.FPS)
         
         # Detener la música al salir
         try:
@@ -916,6 +609,207 @@ class Juego:
             pass
                 
         pygame.quit()
+
+class GameRenderer:
+    """Clase responsable de todo el dibujado del juego (La Vista)."""
+    def __init__(self, pantalla):
+        self.pantalla = pantalla
+        self.fuente_grande = pygame.font.Font(None, 48)
+        self.fuente = pygame.font.Font(None, 36)
+        self.fuente_pequeña = pygame.font.Font(None, 24)
+
+    def dibujar(self, juego):
+        """Dibuja todos los elementos del juego."""
+        self.pantalla.fill(s.NEGRO)
+        
+        for obstaculo in juego.obstaculos:
+            self.dibujar_obstaculo(obstaculo)
+        
+        if juego.tanque1.vidas > 0:
+            self.dibujar_tanque(juego.tanque1)
+        if juego.tanque2.vidas > 0:
+            self.dibujar_tanque(juego.tanque2)
+        
+        for bala in juego.balas:
+            self.dibujar_bala(bala)
+        
+        self.dibujar_efectos(juego.efectos)
+        self.dibujar_ui(juego)
+        
+        if juego.juego_terminado:
+            self.dibujar_pantalla_fin(juego.ganador)
+        
+        pygame.display.flip()
+
+    def dibujar_tanque(self, tanque):
+        tiempo_actual = pygame.time.get_ticks()
+        if tanque.invulnerable and (tiempo_actual // 100) % 2:
+            return
+
+        pygame.draw.rect(self.pantalla, tanque.color, (tanque.x, tanque.y, tanque.ancho, tanque.alto))
+        pygame.draw.rect(self.pantalla, s.BLANCO, (tanque.x + 2, tanque.y + 2, tanque.ancho - 4, tanque.alto - 4), 2)
+        
+        cañon_x = tanque.x + tanque.ancho // 2 + math.cos(tanque.angulo) * 20
+        cañon_y = tanque.y + tanque.alto // 2 + math.sin(tanque.angulo) * 20
+        pygame.draw.line(self.pantalla, tanque.color, 
+                        (tanque.x + tanque.ancho // 2, tanque.y + tanque.alto // 2),
+                        (cañon_x, cañon_y), 5)
+        
+        for i in range(tanque.vidas):
+            color_vida = s.ROJO
+            pygame.draw.circle(self.pantalla, color_vida, 
+                             (int(tanque.x + 5 + i * 8), int(tanque.y - 10)), 4)
+            pygame.draw.circle(self.pantalla, s.BLANCO, 
+                             (int(tanque.x + 5 + i * 8), int(tanque.y - 10)), 4, 1)
+
+    def dibujar_bala(self, bala):
+        num_estelas = 4
+        for i in range(num_estelas):
+            distancia = i * 3
+            alpha = int(150 * (1 - i/num_estelas))
+            pos_x = int(bala.x - math.cos(bala.angulo) * distancia)
+            pos_y = int(bala.y - math.sin(bala.angulo) * distancia)
+            radio_estela = max(1, bala.radio - i)
+            
+            surf = pygame.Surface((radio_estela*2, radio_estela*2), pygame.SRCALPHA)
+            pygame.draw.circle(surf, (*bala.color[:3], alpha), (radio_estela, radio_estela), radio_estela)
+            self.pantalla.blit(surf, (pos_x - radio_estela, pos_y - radio_estela))
+
+        pygame.draw.circle(self.pantalla, bala.color, (int(bala.x), int(bala.y)), bala.radio)
+        pygame.draw.circle(self.pantalla, s.BLANCO_BRILLANTE, (int(bala.x), int(bala.y)), bala.radio - 1)
+
+    def dibujar_obstaculo(self, obstaculo):
+        if obstaculo.tipo == TipoObstaculo.ARBUSTO:
+            pygame.draw.rect(self.pantalla, s.MARRON, (obstaculo.x + 15, obstaculo.y + 30, 10, 10))
+            color_verde = s.VERDE_OSCURO if obstaculo.salud == obstaculo.salud_max else s.VERDE_CLARO
+            pygame.draw.circle(self.pantalla, color_verde, (obstaculo.x + 8, obstaculo.y + 8), 12)
+            pygame.draw.circle(self.pantalla, color_verde, (obstaculo.x + 32, obstaculo.y + 12), 14)
+            pygame.draw.circle(self.pantalla, color_verde, (obstaculo.x + 20, obstaculo.y + 25), 10)
+            pygame.draw.circle(self.pantalla, color_verde, (obstaculo.x + 12, obstaculo.y + 20), 8)
+            pygame.draw.circle(self.pantalla, color_verde, (obstaculo.x + 28, obstaculo.y + 28), 9)
+            if obstaculo.salud < obstaculo.salud_max:
+                pygame.draw.circle(self.pantalla, s.ROJO, (obstaculo.x + 20, obstaculo.y + 20), 3)
+        elif obstaculo.tipo == TipoObstaculo.ROCA:
+            pygame.draw.rect(self.pantalla, s.GRIS, obstaculo.rect)
+            pygame.draw.rect(self.pantalla, s.GRIS_CLARO, (obstaculo.x + 2, obstaculo.y + 2, obstaculo.ancho - 4, obstaculo.alto - 4))
+            pygame.draw.polygon(self.pantalla, (80, 80, 80), 
+                              [(obstaculo.x + 5, obstaculo.y + 35), (obstaculo.x + 15, obstaculo.y + 5),
+                               (obstaculo.x + 35, obstaculo.y + 10), (obstaculo.x + 30, obstaculo.y + 35)])
+            pygame.draw.polygon(self.pantalla, (60, 60, 60), 
+                              [(obstaculo.x + 10, obstaculo.y + 30), (obstaculo.x + 20, obstaculo.y + 15),
+                               (obstaculo.x + 30, obstaculo.y + 20), (obstaculo.x + 25, obstaculo.y + 32)])
+            pygame.draw.line(self.pantalla, (40, 40, 40), (obstaculo.x, obstaculo.y + 35), (obstaculo.x + 40, obstaculo.y + 35), 2)
+        elif obstaculo.tipo == TipoObstaculo.MURO:
+            pygame.draw.rect(self.pantalla, s.MARRON_LADRILLO, obstaculo.rect)
+            for fila in range(4):
+                for col in range(4):
+                    color_ladrillo = (139, 69, 19) if (fila + col) % 2 == 0 else (160, 82, 45)
+                    ladrillo_rect = pygame.Rect(obstaculo.x + col * 10, obstaculo.y + fila * 10, 10, 10)
+                    pygame.draw.rect(self.pantalla, color_ladrillo, ladrillo_rect)
+                    pygame.draw.rect(self.pantalla, (50, 50, 50), ladrillo_rect, 1)
+
+    def actualizar_efectos(self, efectos):
+        for efecto in efectos[:]:
+            efecto['tiempo'] += 1
+            progreso = efecto['tiempo'] / efecto['max_tiempo']
+            if efecto['tipo'] in ['particula', 'humo']:
+                efecto['x'] += efecto['dx']
+                efecto['y'] += efecto['dy']
+            if efecto['tipo'] == 'explosion':
+                efecto['radio'] = int((1 - (1 - progreso) ** 2) * efecto['max_radio'])
+            elif efecto['tipo'] == 'onda':
+                efecto['radio'] = int(progreso * efecto['max_radio'])
+            elif efecto['tipo'] == 'destello':
+                efecto['radio'] = int(efecto['radio'] * (1 - progreso))
+            elif efecto['tipo'] == 'particula':
+                efecto['dy'] += 0.15
+                efecto['dx'] *= 0.95
+                efecto['dy'] *= 0.95
+            elif efecto['tipo'] == 'humo':
+                efecto['radio'] = int(efecto['radio'] * (1 + progreso * 0.5))
+                efecto['dx'] *= 0.98
+                efecto['dy'] *= 0.98
+                efecto['opacidad'] = int(efecto['opacidad'] * (1 - progreso))
+            elif efecto['tipo'] == 'rastro':
+                efecto['opacidad'] = int(255 * (1 - progreso))
+            elif efecto['tipo'] == 'propulsion':
+                efecto['radio'] *= 0.9
+                efecto['opacidad'] = int(128 * (1 - progreso))
+            if efecto['tiempo'] >= efecto['max_tiempo']:
+                efectos.remove(efecto)
+
+    def dibujar_efectos(self, efectos):
+        for efecto in efectos:
+            progreso = efecto['tiempo'] / efecto['max_tiempo']
+            alpha = int(200 * (1 - progreso))
+            surf = None
+            pos = (0,0)
+
+            if efecto['tipo'] == 'explosion':
+                surf = pygame.Surface((efecto['radio']*2, efecto['radio']*2), pygame.SRCALPHA)
+                pygame.draw.circle(surf, (*efecto['color'], alpha), (efecto['radio'], efecto['radio']), efecto['radio'])
+                pygame.draw.circle(surf, (*s.BLANCO_BRILLANTE, alpha // 2), (efecto['radio'], efecto['radio']), max(1, efecto['radio'] - 2))
+                pos = (int(efecto['x']) - efecto['radio'], int(efecto['y']) - efecto['radio'])
+            elif efecto['tipo'] == 'onda':
+                alpha = int(100 * (1 - progreso))
+                surf = pygame.Surface((efecto['radio']*2, efecto['radio']*2), pygame.SRCALPHA)
+                pygame.draw.circle(surf, (*efecto['color'], alpha), (efecto['radio'], efecto['radio']), efecto['radio'], 2)
+                pos = (int(efecto['x']) - efecto['radio'], int(efecto['y']) - efecto['radio'])
+            elif efecto['tipo'] == 'destello':
+                surf = pygame.Surface((efecto['radio']*2, efecto['radio']*2), pygame.SRCALPHA)
+                pygame.draw.circle(surf, (*efecto['color'], alpha), (efecto['radio'], efecto['radio']), efecto['radio'])
+                pos = (int(efecto['x']) - efecto['radio'], int(efecto['y']) - efecto['radio'])
+            elif efecto['tipo'] in ['particula', 'humo', 'rastro', 'propulsion']:
+                radio = efecto['radio']
+                opacidad = efecto.get('opacidad', alpha)
+                surf = pygame.Surface((radio*2, radio*2), pygame.SRCALPHA)
+                pygame.draw.circle(surf, (*efecto['color'], opacidad), (radio, radio), radio)
+                pos = (int(efecto['x']) - radio, int(efecto['y']) - radio)
+
+            if surf:
+                self.pantalla.blit(surf, pos)
+
+    def dibujar_ui(self, juego):
+        pygame.draw.rect(self.pantalla, (50, 50, 50), (0, 0, s.ANCHO_VENTANA, 80))
+        pygame.draw.line(self.pantalla, s.BLANCO, (0, 80), (s.ANCHO_VENTANA, 80), 2)
+        
+        texto_puntuacion1 = self.fuente.render(f"Azul: {juego.tanque1.puntuacion}", True, s.AZUL)
+        texto_puntuacion2 = self.fuente.render(f"Rojo: {juego.tanque2.puntuacion}", True, s.ROJO)
+        self.pantalla.blit(texto_puntuacion1, (10, 10))
+        self.pantalla.blit(texto_puntuacion2, (10, 40))
+        
+        instrucciones = ["Azul: W/A/D | Rojo: I/J/L", "R=Reiniciar | M=Música | +/-=Volumen | ESC=Salir"]
+        for i, instruccion in enumerate(instrucciones):
+            texto = self.fuente_pequeña.render(instruccion, True, s.AMARILLO)
+            x_pos = (s.ANCHO_VENTANA - texto.get_width()) // 2
+            y_pos = 15 + i * 25
+            self.pantalla.blit(texto, (x_pos, y_pos))
+        
+        estado_musica = "Música: ON" if not juego.musica_pausada else "Música: OFF"
+        color_musica = s.VERDE if not juego.musica_pausada else s.ROJO
+        texto_musica = self.fuente_pequeña.render(estado_musica, True, color_musica)
+        self.pantalla.blit(texto_musica, (s.ANCHO_VENTANA - 120, 10))
+        
+        texto_volumen = self.fuente_pequeña.render(f"Vol: {int(juego.volumen_actual * 100)}%", True, s.BLANCO)
+        self.pantalla.blit(texto_volumen, (s.ANCHO_VENTANA - 120, 30))
+
+    def dibujar_pantalla_fin(self, ganador):
+        overlay = pygame.Surface((s.ANCHO_VENTANA, s.ALTO_VENTANA), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 128))
+        self.pantalla.blit(overlay, (0, 0))
+        
+        if ganador == "Empate":
+            texto_fin = self.fuente_grande.render("¡EMPATE!", True, s.AMARILLO)
+        else:
+            texto_fin = self.fuente_grande.render(f"¡{ganador} GANA!", True, s.AMARILLO)
+        
+        texto_reiniciar = self.fuente.render("Presiona R para reiniciar", True, s.BLANCO)
+        
+        rect_fin = texto_fin.get_rect(center=(s.ANCHO_VENTANA//2, s.ALTO_VENTANA//2 - 50))
+        rect_reiniciar = texto_reiniciar.get_rect(center=(s.ANCHO_VENTANA//2, s.ALTO_VENTANA//2 + 20))
+        
+        self.pantalla.blit(texto_fin, rect_fin)
+        self.pantalla.blit(texto_reiniciar, rect_reiniciar)
 
 def main():
     """Función principal que inicia el juego."""
