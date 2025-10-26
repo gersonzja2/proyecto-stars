@@ -31,6 +31,7 @@ El objetivo es simple: ¡destruir el tanque de tu oponente! Cada tanque tiene 3 
 -   `L`: Girar a la derecha
 
 **Controles del Juego:**
+-   `P`: Pausar o reanudar el juego.
 -   `R`: Reiniciar la partida.
 -   `M`: Pausar o reanudar la música.
 -   `+` / `-`: Subir o bajar el volumen de la música.
@@ -41,6 +42,7 @@ El objetivo es simple: ¡destruir el tanque de tu oponente! Cada tanque tiene 3 
 -   **Rocas 🪨:** Indestructibles. Bloquean tanto el movimiento como los disparos.
 -   **Arbustos 🌳:** Destructibles. Se destruyen con 2 impactos.
 -   **Muros de Ladrillo 🧱:** Destructibles. Son más resistentes y requieren 5 impactos para ser destruidos.
+-   **Cajas de Madera 📦:** Destructibles. Resistencia media, se rompen con 3 impactos.
 
 ## 🛠️ Requisitos e Instalación
 

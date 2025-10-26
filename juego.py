@@ -12,6 +12,13 @@ class TipoObstaculo(Enum):
     ARBUSTO = auto()
     ROCA = auto()
     MURO = auto()
+    CAJA_MADERA = auto()
+
+class GameState(Enum):
+    """Enum para los estados del juego."""
+    JUGANDO = auto()
+    PAUSA = auto()
+    FIN_PARTIDA = auto()
 
 class Tanque:
     def __init__(self, x, y, color, teclas, juego):
@@ -166,10 +173,13 @@ class Obstaculo:
         self.ancho = 40
         self.alto = 40
         self.rect = pygame.Rect(x, y, self.ancho, self.alto)
-
+ 
         if tipo == TipoObstaculo.ARBUSTO:
             self.destructible = True
             self.salud = 2
+        elif tipo == TipoObstaculo.CAJA_MADERA:
+            self.destructible = True
+            self.salud = 3
         elif tipo == TipoObstaculo.MURO:
             self.destructible = True
             self.salud = 5  # Más resistente que un arbusto
@@ -217,7 +227,7 @@ class Juego:
         self.crear_obstaculos()
         
         # Estado del juego
-        self.juego_terminado = False
+        self.estado = GameState.JUGANDO
         self.ganador = None
         self.musica_pausada = False
         self.volumen_actual = 0.3
@@ -291,23 +301,25 @@ class Juego:
         self.obstaculos = []
         
         # Crear rocas (no destructibles) - posiciones aleatorias
-        num_rocas = 15
-        for _ in range(num_rocas):
+        for _ in range(s.NUM_ROCAS):
             x, y = self.generar_posicion_segura()
             self.obstaculos.append(Obstaculo(x, y, TipoObstaculo.ROCA))
             
         # Crear arbustos (destructibles) - posiciones aleatorias
-        num_arbustos = 20
-        for _ in range(num_arbustos):
+        for _ in range(s.NUM_ARBUSTOS):
             x, y = self.generar_posicion_segura()
             self.obstaculos.append(Obstaculo(x, y, TipoObstaculo.ARBUSTO))
 
         # Crear muros (destructibles y más resistentes)
-        num_muros = 10
-        for _ in range(num_muros):
+        for _ in range(s.NUM_MUROS):
             x, y = self.generar_posicion_segura()
             self.obstaculos.append(Obstaculo(x, y, TipoObstaculo.MURO))
         
+        # Crear cajas de madera (destructibles)
+        for _ in range(s.NUM_CAJAS_MADERA):
+            x, y = self.generar_posicion_segura()
+            self.obstaculos.append(Obstaculo(x, y, TipoObstaculo.CAJA_MADERA))
+
         # Verificar que no haya obstáculos superpuestos y separar si es necesario
         self.separar_obstaculos()
     
@@ -397,12 +409,20 @@ class Juego:
                 elif evento.key == pygame.K_MINUS:
                     # Disminuir volumen
                     self.disminuir_volumen()
+                elif evento.key == pygame.K_p:
+                    # Pausar/reanudar el juego
+                    self.pausar_juego()
         return True
+    def pausar_juego(self):
+        """Pausa o reanuda el juego."""
+        if self.estado == GameState.JUGANDO:
+            self.estado = GameState.PAUSA
+            print("Juego pausado")
+        elif self.estado == GameState.PAUSA:
+            self.estado = GameState.JUGANDO
+            print("Juego reanudado")
     
     def actualizar(self):
-        if self.juego_terminado:
-            return
-            
         teclas_presionadas = pygame.key.get_pressed()
         
         # Mover tanques con detección de colisiones entre ellos
@@ -436,13 +456,13 @@ class Juego:
         
         # Verificar fin del juego
         if self.tanque1.vidas <= 0 and self.tanque2.vidas <= 0:
-            self.juego_terminado = True
+            self.estado = GameState.FIN_PARTIDA
             self.ganador = "Empate"
         elif self.tanque1.vidas <= 0:
-            self.juego_terminado = True
+            self.estado = GameState.FIN_PARTIDA
             self.ganador = "Tanque Rojo"
         elif self.tanque2.vidas <= 0:
-            self.juego_terminado = True
+            self.estado = GameState.FIN_PARTIDA
             self.ganador = "Tanque Azul"
     
     def verificar_colisiones(self):
@@ -589,17 +609,25 @@ class Juego:
         self.efectos = []
         self.obstaculos = []
         self.crear_obstaculos()
-        self.juego_terminado = False
+        self.estado = GameState.JUGANDO
         self.ganador = None
         # La música continúa reproduciéndose
     
     def ejecutar(self):
         ejecutando = True
         while ejecutando:
+            # 1. Manejar eventos (común a todos los estados)
             ejecutando = self.manejar_eventos()
-            self.actualizar()
-            self.renderer.actualizar_efectos(self.efectos)
+
+            # 2. Actualizar estado del juego (solo si se está jugando)
+            if self.estado == GameState.JUGANDO:
+                self.actualizar()
+                self.renderer.actualizar_efectos(self.efectos)
+
+            # 3. Dibujar en pantalla (siempre, pero el renderizador puede cambiar según el estado)
             self.renderer.dibujar(self)
+
+            # 4. Controlar FPS
             self.reloj.tick(s.FPS)
         
         # Detener la música al salir
@@ -636,8 +664,12 @@ class GameRenderer:
         self.dibujar_efectos(juego.efectos)
         self.dibujar_ui(juego)
         
-        if juego.juego_terminado:
-            self.dibujar_pantalla_fin(juego.ganador)
+        # Dibujar overlays según el estado del juego
+        if juego.estado == GameState.FIN_PARTIDA:
+            self.dibujar_pantalla_fin(juego)
+        elif juego.estado == GameState.PAUSA:
+            self.dibujar_pantalla_pausa()
+
         
         pygame.display.flip()
 
@@ -707,6 +739,13 @@ class GameRenderer:
                     ladrillo_rect = pygame.Rect(obstaculo.x + col * 10, obstaculo.y + fila * 10, 10, 10)
                     pygame.draw.rect(self.pantalla, color_ladrillo, ladrillo_rect)
                     pygame.draw.rect(self.pantalla, (50, 50, 50), ladrillo_rect, 1)
+        elif obstaculo.tipo == TipoObstaculo.CAJA_MADERA:
+            # Dibujar caja de madera
+            pygame.draw.rect(self.pantalla, s.MARRON_CAJA, obstaculo.rect)
+            pygame.draw.rect(self.pantalla, s.MARRON_CAJA_OSCURO, obstaculo.rect, 3)
+            # Líneas para simular tablas
+            pygame.draw.line(self.pantalla, s.MARRON_CAJA_OSCURO, (obstaculo.x, obstaculo.y + 20), (obstaculo.x + 40, obstaculo.y + 20), 2)
+            pygame.draw.line(self.pantalla, s.MARRON_CAJA_OSCURO, (obstaculo.x + 20, obstaculo.y), (obstaculo.x + 20, obstaculo.y + 40), 2)
 
     def actualizar_efectos(self, efectos):
         for efecto in efectos[:]:
@@ -778,7 +817,7 @@ class GameRenderer:
         self.pantalla.blit(texto_puntuacion1, (10, 10))
         self.pantalla.blit(texto_puntuacion2, (10, 40))
         
-        instrucciones = ["Azul: W/A/D | Rojo: I/J/L", "R=Reiniciar | M=Música | +/-=Volumen | ESC=Salir"]
+        instrucciones = ["Azul: W/A/D | Rojo: I/J/L", "P=Pausa | R=Reiniciar | M=Música | +/-=Volumen | ESC=Salir"]
         for i, instruccion in enumerate(instrucciones):
             texto = self.fuente_pequeña.render(instruccion, True, s.AMARILLO)
             x_pos = (s.ANCHO_VENTANA - texto.get_width()) // 2
@@ -793,15 +832,15 @@ class GameRenderer:
         texto_volumen = self.fuente_pequeña.render(f"Vol: {int(juego.volumen_actual * 100)}%", True, s.BLANCO)
         self.pantalla.blit(texto_volumen, (s.ANCHO_VENTANA - 120, 30))
 
-    def dibujar_pantalla_fin(self, ganador):
+    def dibujar_pantalla_fin(self, juego):
         overlay = pygame.Surface((s.ANCHO_VENTANA, s.ALTO_VENTANA), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 128))
         self.pantalla.blit(overlay, (0, 0))
         
-        if ganador == "Empate":
+        if juego.ganador == "Empate":
             texto_fin = self.fuente_grande.render("¡EMPATE!", True, s.AMARILLO)
         else:
-            texto_fin = self.fuente_grande.render(f"¡{ganador} GANA!", True, s.AMARILLO)
+            texto_fin = self.fuente_grande.render(f"¡{juego.ganador} GANA!", True, s.AMARILLO)
         
         texto_reiniciar = self.fuente.render("Presiona R para reiniciar", True, s.BLANCO)
         
@@ -811,13 +850,23 @@ class GameRenderer:
         self.pantalla.blit(texto_fin, rect_fin)
         self.pantalla.blit(texto_reiniciar, rect_reiniciar)
 
+    def dibujar_pantalla_pausa(self):
+        """Dibuja la pantalla de pausa."""
+        overlay = pygame.Surface((s.ANCHO_VENTANA, s.ALTO_VENTANA), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 128))
+        self.pantalla.blit(overlay, (0, 0))
+
+        texto_pausa = self.fuente_grande.render("PAUSA", True, s.AMARILLO)
+        rect_pausa = texto_pausa.get_rect(center=(s.ANCHO_VENTANA // 2, s.ALTO_VENTANA // 2))
+        self.pantalla.blit(texto_pausa, rect_pausa)
+
 def main():
     """Función principal que inicia el juego."""
     print("¡Bienvenido al Juego de Tanques!")
     print("Controles:")
     print("Tanque Azul: W=Avanzar/Disparar, A/D=Girar")
     print("Tanque Rojo: I=Avanzar/Disparar, J/L=Girar")
-    print("R=Reiniciar | M=Música | +/-=Volumen | ESC=Salir")
+    print("P=Pausa | R=Reiniciar | M=Música | +/-=Volumen | ESC=Salir")
     
     try:
         juego = Juego()

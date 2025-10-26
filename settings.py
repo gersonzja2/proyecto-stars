@@ -21,6 +21,10 @@ VERDE_CLARO = (144, 238, 144)
 GRIS_CLARO = (200, 200, 200)
 MARRON_LADRILLO = (150, 75, 0)
 
+# Colores para la caja de madera
+MARRON_CAJA = (160, 110, 60)
+MARRON_CAJA_OSCURO = (130, 80, 40)
+
 # Colores para efectos
 AMARILLO_FUEGO = (255, 200, 0)
 NARANJA_FUEGO = (255, 100, 0)
@@ -36,6 +40,12 @@ DURACION_DESTELLO = 8
 DURACION_PROPULSION = 10
 DURACION_ESTELA = 15
 MAX_EFECTOS = 50
+
+# Configuración del mapa
+NUM_ROCAS = 20
+NUM_ARBUSTOS = 25
+NUM_MUROS = 15
+NUM_CAJAS_MADERA = 10
 
 # Archivos de assets
 MUSIC_FILE = "megalovia.mp3"
