@@ -174,12 +174,9 @@ class DestelloDisparo(Efecto):
             p3 = (self.x + math.cos(self.angulo + math.pi/2) * longitud_actual / 2, self.y + math.sin(self.angulo + math.pi/2) * longitud_actual / 2)
             p4 = (self.x - math.cos(self.angulo + math.pi/2) * longitud_actual / 2, self.y - math.sin(self.angulo + math.pi/2) * longitud_actual / 2)
             
-            alpha = int(255 * (1 - progreso))
-            color = (*self.color, alpha)
-
-            # Usamos una superficie para aplicar el alpha correctamente
-            ancho, alto = s.ANCHO_VENTANA, s.ALTO_VENTANA
-            surf = pygame.Surface((ancho, alto), pygame.SRCALPHA)
+            # El alpha se puede aplicar directamente en el color si la superficie lo soporta.
+            # Pygame > 2.0.0 lo maneja bien en la mayoría de los casos.
+            color = self.color
             pygame.draw.line(pantalla, color, p1, p2, 3)
             pygame.draw.line(pantalla, color, p3, p4, 3)
 
